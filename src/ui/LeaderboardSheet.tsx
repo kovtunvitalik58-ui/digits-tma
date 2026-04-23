@@ -2,6 +2,9 @@ import { AnimatePresence, motion } from 'motion/react';
 import { useEffect, useState } from 'react';
 import { getFriendIds } from '../game/friends';
 import { getUser, getUserDisplayName } from '../lib/telegram';
+import { loadDailyResult } from '../game/dailyResult';
+import { kyivIsoDate } from '../lib/kyivDate';
+import type { Stars } from '../game/types';
 
 type Tab = 'friends' | 'global';
 
@@ -73,7 +76,8 @@ type Row = {
   rank: number;
   name: string;
   photoUrl?: string;
-  score: number | null;
+  stars?: Stars;
+  opsUsed?: number;
   isMe?: boolean;
 };
 
@@ -84,9 +88,13 @@ function FriendsList() {
     let cancelled = false;
     (async () => {
       // TODO: replace with `fetch('/api/leaderboard/friends')` once backend is up.
-      // For now: show the current user + locally-registered friends as placeholders.
+      // For now: show the current user (with local daily result) +
+      // locally-registered friends as placeholders.
       const me = getUser();
-      const friendIds = await getFriendIds();
+      const [friendIds, myToday] = await Promise.all([
+        getFriendIds(),
+        loadDailyResult(kyivIsoDate()),
+      ]);
       if (cancelled) return;
       const rows: Row[] = [];
       if (me) {
@@ -95,7 +103,8 @@ function FriendsList() {
           rank: 1,
           name: getUserDisplayName(),
           photoUrl: me.photo_url,
-          score: null,
+          stars: myToday?.stars,
+          opsUsed: myToday?.opsUsed,
           isMe: true,
         });
       }
@@ -104,7 +113,6 @@ function FriendsList() {
           id: `u${fid}`,
           rank: rows.length + 1,
           name: `Друг #${String(fid).slice(-4)}`,
-          score: null,
         });
       });
       setRows(rows);
@@ -150,13 +158,60 @@ function RowList({ rows }: { rows: Row[] }) {
           <span className="w-6 text-center text-sm text-hint tabular-nums">{r.rank}</span>
           <Avatar name={r.name} photoUrl={r.photoUrl} />
           <span className="flex-1 truncate text-sm">{r.name}</span>
-          <span className="text-sm font-semibold tabular-nums text-hint">
-            {r.score === null ? '—' : r.score}
-          </span>
+          <Score stars={r.stars} opsUsed={r.opsUsed} />
         </li>
       ))}
     </ul>
   );
+}
+
+function Score({ stars, opsUsed }: { stars?: Stars; opsUsed?: number }) {
+  if (stars === undefined) {
+    return <span className="text-sm text-hint">—</span>;
+  }
+  return (
+    <div className="flex items-center gap-1.5">
+      <StarRow value={stars} />
+      {opsUsed !== undefined && (
+        <span className="text-xs tabular-nums text-hint">
+          {opsUsed} ход{plural(opsUsed, '', 'и', 'ів')}
+        </span>
+      )}
+    </div>
+  );
+}
+
+function StarRow({ value }: { value: Stars }) {
+  return (
+    <span className="inline-flex items-center">
+      {[1, 2, 3].map((i) => {
+        const filled = i <= value;
+        return (
+          <svg
+            key={i}
+            width="12"
+            height="12"
+            viewBox="0 0 24 24"
+            fill={filled ? '#fbbf24' : 'none'}
+            stroke={filled ? '#fbbf24' : '#475569'}
+            strokeWidth="2.2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          >
+            <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
+          </svg>
+        );
+      })}
+    </span>
+  );
+}
+
+function plural(n: number, one: string, few: string, many: string): string {
+  const mod10 = n % 10;
+  const mod100 = n % 100;
+  if (mod10 === 1 && mod100 !== 11) return one;
+  if (mod10 >= 2 && mod10 <= 4 && (mod100 < 10 || mod100 >= 20)) return few;
+  return many;
 }
 
 function Avatar({ name, photoUrl }: { name: string; photoUrl?: string }) {
