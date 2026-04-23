@@ -10,6 +10,21 @@ export function getUserId(): number | null {
   return tg()?.initDataUnsafe?.user?.id ?? null;
 }
 
+/** Raw Telegram user object, or null outside Telegram. */
+export function getUser(): TelegramUser | null {
+  return tg()?.initDataUnsafe?.user ?? null;
+}
+
+/** Human-friendly display name, prefers first+last, falls back to @username. */
+export function getUserDisplayName(): string {
+  const u = getUser();
+  if (!u) return 'Ти';
+  const parts = [u.first_name, u.last_name].filter(Boolean) as string[];
+  if (parts.length) return parts.join(' ');
+  if (u.username) return '@' + u.username;
+  return 'Ти';
+}
+
 /** `start_param` set by the t.me/.../play?startapp=... link — used for referrals. */
 export function getStartParam(): string | null {
   return tg()?.initDataUnsafe?.start_param ?? null;

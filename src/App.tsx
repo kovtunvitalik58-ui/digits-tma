@@ -12,6 +12,8 @@ import { loadStats, recordDailySolve, saveStats, type Stats } from './game/stats
 import { buildShareText } from './game/share';
 import { buildReferralUrl, parseRefFromStartParam, registerFriendship } from './game/friends';
 import { useUndoLimit } from './game/useUndoLimit';
+import { loadDailyResult, saveDailyResult, type DailyResult } from './game/dailyResult';
+import { kyivIsoDate } from './lib/kyivDate';
 
 export default function App() {
   const initialPuzzle = useMemo(() => todayPuzzle(), []);
@@ -21,10 +23,21 @@ export default function App() {
   const [victoryOpen, setVictoryOpen] = useState(false);
   const [leaderboardOpen, setLeaderboardOpen] = useState(false);
   const [recordedFor, setRecordedFor] = useState<string | null>(null);
+  const [todayResult, setTodayResult] = useState<DailyResult | null>(null);
 
   // Load persisted stats once.
   useEffect(() => {
     loadStats().then(setStats);
+  }, []);
+
+  // If today's puzzle was already finished, surface the saved result so
+  // reopening the app doesn't make the player restart or lose their score.
+  useEffect(() => {
+    loadDailyResult(kyivIsoDate()).then((r) => {
+      if (!r) return;
+      setTodayResult(r);
+      setVictoryOpen(true);
+    });
   }, []);
 
   // Pick up referral on first open. Runs every launch so an existing player
@@ -36,17 +49,35 @@ export default function App() {
     registerFriendship(me, referrer).catch(() => void 0);
   }, []);
 
-  // React to game-ending: haptics, show result sheet, record daily if solved.
+  // React to game-ending: haptics, show result sheet, persist result, bump streak.
   const { status, puzzle: puzzleState } = game.state.puzzle;
   const puzzleId = puzzleState.id;
   const stars = game.state.puzzle.stars;
   const opsUsed = game.state.puzzle.history.length;
   useEffect(() => {
     if (status !== 'ended') return;
+    // If we've loaded a saved result from an earlier session, it's a replay —
+    // don't overwrite anything or re-trigger haptics.
+    if (todayResult) return;
+
     if (stars >= 2) haptic.success();
     else if (stars === 1) haptic.warn();
     else haptic.error();
     setVictoryOpen(true);
+
+    // Freeze the result for the rest of the Kyiv day.
+    const result: DailyResult = {
+      dateId: kyivIsoDate(),
+      stars,
+      target: puzzleState.target,
+      closest: game.closestValue.value,
+      distance: game.closestValue.dist === Infinity ? 0 : game.closestValue.dist,
+      opsUsed,
+      finishedAt: Date.now(),
+    };
+    saveDailyResult(result).catch(() => void 0);
+    setTodayResult(result);
+
     // Streak increments only on an actual win (≥ 1 star).
     if (stars === 0) return;
     if (recordedFor === puzzleId) return;
@@ -57,9 +88,20 @@ export default function App() {
       await saveStats(next);
       setStats(next);
     })();
-  }, [status, puzzleId, stars, recordedFor]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [status, puzzleId, stars, recordedFor, todayResult]);
 
-  const playing = status === 'playing';
+  // Once today's result is saved the board is frozen — no more ops, no undo.
+  const playing = status === 'playing' && !todayResult;
+
+  // When replaying (saved result exists), pull display values from storage
+  // instead of the live in-memory game which was reset on mount.
+  const displayStars = todayResult?.stars ?? stars;
+  const displayClosest = todayResult?.closest ?? game.closestValue.value;
+  const displayDistance =
+    todayResult?.distance ??
+    (game.closestValue.dist === Infinity ? 0 : game.closestValue.dist);
+  const displayOpsUsed = todayResult?.opsUsed ?? opsUsed;
 
   const onShare = async () => {
     haptic.tap();
@@ -117,11 +159,11 @@ export default function App() {
 
       <VictorySheet
         open={victoryOpen}
-        stars={stars}
-        distance={game.closestValue.dist === Infinity ? 0 : game.closestValue.dist}
+        stars={displayStars}
+        distance={displayDistance}
         target={puzzleState.target}
-        closest={game.closestValue.value}
-        opsUsed={opsUsed}
+        closest={displayClosest}
+        opsUsed={displayOpsUsed}
         onShare={onShare}
         onClose={() => setVictoryOpen(false)}
       />

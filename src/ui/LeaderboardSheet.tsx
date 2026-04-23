@@ -1,7 +1,7 @@
 import { AnimatePresence, motion } from 'motion/react';
 import { useEffect, useState } from 'react';
 import { getFriendIds } from '../game/friends';
-import { getUserId } from '../lib/telegram';
+import { getUser, getUserDisplayName } from '../lib/telegram';
 
 type Tab = 'friends' | 'global';
 
@@ -72,6 +72,7 @@ type Row = {
   id: string;
   rank: number;
   name: string;
+  photoUrl?: string;
   score: number | null;
   isMe?: boolean;
 };
@@ -84,21 +85,27 @@ function FriendsList() {
     (async () => {
       // TODO: replace with `fetch('/api/leaderboard/friends')` once backend is up.
       // For now: show the current user + locally-registered friends as placeholders.
-      const me = getUserId();
+      const me = getUser();
       const friendIds = await getFriendIds();
       if (cancelled) return;
       const rows: Row[] = [];
-      if (me !== null) {
-        rows.push({ id: `u${me}`, rank: 1, name: 'Ти', score: null, isMe: true });
+      if (me) {
+        rows.push({
+          id: `u${me.id}`,
+          rank: 1,
+          name: getUserDisplayName(),
+          photoUrl: me.photo_url,
+          score: null,
+          isMe: true,
+        });
       }
-      friendIds.forEach((fid, i) => {
+      friendIds.forEach((fid) => {
         rows.push({
           id: `u${fid}`,
           rank: rows.length + 1,
           name: `Друг #${String(fid).slice(-4)}`,
           score: null,
         });
-        void i;
       });
       setRows(rows);
     })();
@@ -141,7 +148,7 @@ function RowList({ rows }: { rows: Row[] }) {
           }
         >
           <span className="w-6 text-center text-sm text-hint tabular-nums">{r.rank}</span>
-          <Avatar name={r.name} />
+          <Avatar name={r.name} photoUrl={r.photoUrl} />
           <span className="flex-1 truncate text-sm">{r.name}</span>
           <span className="text-sm font-semibold tabular-nums text-hint">
             {r.score === null ? '—' : r.score}
@@ -152,7 +159,18 @@ function RowList({ rows }: { rows: Row[] }) {
   );
 }
 
-function Avatar({ name }: { name: string }) {
+function Avatar({ name, photoUrl }: { name: string; photoUrl?: string }) {
+  const [broken, setBroken] = useState(false);
+  if (photoUrl && !broken) {
+    return (
+      <img
+        src={photoUrl}
+        alt=""
+        className="w-8 h-8 rounded-full object-cover ring-1 ring-white/5"
+        onError={() => setBroken(true)}
+      />
+    );
+  }
   const initial = name.charAt(0).toUpperCase() || '?';
   return (
     <div className="w-8 h-8 rounded-full bg-bg/80 ring-1 ring-white/5 flex items-center justify-center text-sm font-semibold text-hint">
