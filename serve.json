@@ -1,5 +1,4 @@
 {
-  "$schema": "https://json.schemastore.org/serve",
   "rewrites": [
     { "source": "**", "destination": "/index.html" }
   ],
