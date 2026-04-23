@@ -1,0 +1,157 @@
+// Thin wrapper around window.Telegram.WebApp.
+// Works outside Telegram too (all calls become no-ops), so dev in browser just works.
+
+export function tg(): TelegramWebApp | undefined {
+  return window.Telegram?.WebApp;
+}
+
+/** Current user's Telegram ID (or null if running outside Telegram). */
+export function getUserId(): number | null {
+  return tg()?.initDataUnsafe?.user?.id ?? null;
+}
+
+/** `start_param` set by the t.me/.../play?startapp=... link — used for referrals. */
+export function getStartParam(): string | null {
+  return tg()?.initDataUnsafe?.start_param ?? null;
+}
+
+/** Chat context: stable per chat where the app was opened from.
+ *  Useful for per-chat leaderboards. */
+export function getChatInstance(): string | null {
+  return tg()?.initDataUnsafe?.chat_instance ?? null;
+}
+
+function versionAtLeast(min: [number, number]): boolean {
+  const app = tg();
+  if (!app) return false;
+  const parts = (app.version || '0').split('.').map((n) => parseInt(n, 10) || 0);
+  const major = parts[0] ?? 0;
+  const minor = parts[1] ?? 0;
+  return major > min[0] || (major === min[0] && minor >= min[1]);
+}
+
+export function initTelegram(): void {
+  const app = tg();
+  if (!app) return;
+  try {
+    app.ready();
+    app.expand();
+  } catch {
+    // no-op
+  }
+  // Header/background color customization shipped in v6.1.
+  if (versionAtLeast([6, 1])) {
+    try {
+      app.setHeaderColor('#0f172a');
+      app.setBackgroundColor('#0f172a');
+    } catch {
+      // swallow — older clients may still reject unknown colors
+    }
+  }
+}
+
+function hapticSupported(): boolean {
+  return !!tg()?.HapticFeedback && versionAtLeast([6, 1]);
+}
+
+export const haptic = {
+  tap(): void {
+    if (hapticSupported()) tg()!.HapticFeedback.impactOccurred('light');
+  },
+  pick(): void {
+    if (hapticSupported()) tg()!.HapticFeedback.selectionChanged();
+  },
+  success(): void {
+    if (hapticSupported()) tg()!.HapticFeedback.notificationOccurred('success');
+  },
+  warn(): void {
+    if (hapticSupported()) tg()!.HapticFeedback.notificationOccurred('warning');
+  },
+  error(): void {
+    if (hapticSupported()) tg()!.HapticFeedback.notificationOccurred('error');
+  },
+  heavy(): void {
+    if (hapticSupported()) tg()!.HapticFeedback.impactOccurred('heavy');
+  },
+};
+
+/** Open the Telegram share picker with a pre-filled message.
+ *  Falls back to Web Share API / clipboard when running outside Telegram. */
+export async function shareResult(text: string, url?: string): Promise<'telegram' | 'web-share' | 'clipboard' | 'unsupported'> {
+  const app = tg();
+  if (app?.openTelegramLink) {
+    const qp = new URLSearchParams();
+    qp.set('url', url ?? '');
+    qp.set('text', text);
+    app.openTelegramLink(`https://t.me/share/url?${qp.toString()}`);
+    return 'telegram';
+  }
+  if (typeof navigator !== 'undefined' && 'share' in navigator) {
+    try {
+      await (navigator as Navigator & { share: (data: ShareData) => Promise<void> }).share({ text, url });
+      return 'web-share';
+    } catch {
+      // user cancelled or not allowed — fall through
+    }
+  }
+  try {
+    await navigator.clipboard?.writeText(url ? `${text}\n${url}` : text);
+    return 'clipboard';
+  } catch {
+    return 'unsupported';
+  }
+}
+
+// CloudStorage as Promises + localStorage fallback for browser dev or
+// older Telegram clients (CloudStorage shipped in WebApp v6.9).
+const LS_PREFIX = 'digits:';
+
+function cloudStorageSupported(): boolean {
+  return !!tg()?.CloudStorage && versionAtLeast([6, 9]);
+}
+
+export const storage = {
+  async get(key: string): Promise<string | null> {
+    if (cloudStorageSupported()) {
+      return new Promise((resolve) => {
+        try {
+          tg()!.CloudStorage.getItem(key, (err, value) => {
+            if (err) resolve(null);
+            else resolve(value || null);
+          });
+        } catch {
+          resolve(localStorage.getItem(LS_PREFIX + key));
+        }
+      });
+    }
+    return localStorage.getItem(LS_PREFIX + key);
+  },
+
+  async set(key: string, value: string): Promise<void> {
+    if (cloudStorageSupported()) {
+      return new Promise((resolve) => {
+        try {
+          tg()!.CloudStorage.setItem(key, value, () => resolve());
+        } catch {
+          localStorage.setItem(LS_PREFIX + key, value);
+          resolve();
+        }
+      });
+    }
+    localStorage.setItem(LS_PREFIX + key, value);
+  },
+
+  async getJSON<T>(key: string): Promise<T | null> {
+    const raw = await storage.get(key);
+    if (!raw) return null;
+    try {
+      return JSON.parse(raw) as T;
+    } catch {
+      return null;
+    }
+  },
+
+  async setJSON<T>(key: string, value: T): Promise<void> {
+    await storage.set(key, JSON.stringify(value));
+  },
+};
