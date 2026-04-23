@@ -1,4 +1,5 @@
 import { storage } from '../lib/telegram';
+import { kyivIsoDate, prevIsoDate } from '../lib/kyivDate';
 
 export type Stats = {
   /** Count of puzzles solved, all-time. */
@@ -32,26 +33,13 @@ export async function saveStats(s: Stats): Promise<void> {
   await storage.setJSON(KEY, s);
 }
 
-function isoDate(d = new Date()): string {
-  const y = d.getFullYear();
-  const m = String(d.getMonth() + 1).padStart(2, '0');
-  const day = String(d.getDate()).padStart(2, '0');
-  return `${y}-${m}-${day}`;
-}
-
-function yesterdayIso(ref = new Date()): string {
-  const d = new Date(ref);
-  d.setDate(d.getDate() - 1);
-  return isoDate(d);
-}
-
-export function recordDailySolve(current: Stats, stars: number, now = new Date()): Stats {
-  const today = isoDate(now);
+export function recordDailySolve(current: Stats, stars: number, now: Date = new Date()): Stats {
+  const today = kyivIsoDate(now);
   if (current.lastDaily === today) {
-    // Already recorded this daily — only update star count if better run.
-    return { ...current, totalStars: Math.max(current.totalStars, current.totalStars) };
+    // Already recorded this daily — keep totals as-is.
+    return current;
   }
-  const continuing = current.lastDaily === yesterdayIso(now);
+  const continuing = current.lastDaily === prevIsoDate(today);
   const streak = continuing ? current.streak + 1 : 1;
   return {
     solved: current.solved + 1,

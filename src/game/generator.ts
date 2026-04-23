@@ -1,5 +1,6 @@
 import type { Puzzle } from './types';
 import { solve, reachableValues } from './solver';
+import { kyivDayOfWeek, kyivIsoDate } from '../lib/kyivDate';
 
 type GenOptions = {
   /** How many starters (NYT uses 6). */
@@ -130,17 +131,16 @@ export function generatePuzzle({
   };
 }
 
-/** Difficulty curve by weekday — NYT pattern: Mon easy → Sat hard. */
-export function difficultyFor(date: Date): number {
-  const day = date.getDay(); // 0 Sun
-  // 0..6 → min steps. Sunday is a "medium".
+/** Difficulty curve by weekday — NYT pattern: Mon easy → Sat hard.
+ *  Weekday is resolved in Europe/Kyiv so every player rolls over together. */
+export function difficultyFor(date: Date = new Date()): number {
+  const day = kyivDayOfWeek(date); // 0 Sun .. 6 Sat, in Kyiv
   return [3, 3, 3, 4, 4, 5, 5][day];
 }
 
-export function todayPuzzle(now = new Date()): Puzzle {
-  const y = now.getFullYear();
-  const m = String(now.getMonth() + 1).padStart(2, '0');
-  const d = String(now.getDate()).padStart(2, '0');
-  const seed = `${y}-${m}-${d}`;
+/** The daily puzzle for "today in Kyiv". Deterministic per Kyiv-date, so the
+ *  same puzzle is seen by everyone between local 00:00 and 24:00 in Kyiv. */
+export function todayPuzzle(now: Date = new Date()): Puzzle {
+  const seed = kyivIsoDate(now);
   return generatePuzzle({ minSteps: difficultyFor(now), seed });
 }
