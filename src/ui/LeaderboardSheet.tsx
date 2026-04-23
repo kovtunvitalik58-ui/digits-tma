@@ -97,17 +97,18 @@ function FriendsList() {
       ]);
       if (cancelled) return;
       const rows: Row[] = [];
-      if (me) {
-        rows.push({
-          id: `u${me.id}`,
-          rank: 1,
-          name: getUserDisplayName(),
-          photoUrl: me.photo_url,
-          stars: myToday?.stars,
-          opsUsed: myToday?.opsUsed,
-          isMe: true,
-        });
-      }
+      // Always include the "me" row. Fall back to placeholder identity so the
+      // player always sees their own result, even if Telegram hasn't provided
+      // initDataUnsafe.user (e.g. opened in a plain browser for testing).
+      rows.push({
+        id: me ? `u${me.id}` : 'me',
+        rank: 1,
+        name: getUserDisplayName(),
+        photoUrl: me?.photo_url,
+        stars: myToday?.stars,
+        opsUsed: myToday?.opsUsed,
+        isMe: true,
+      });
       friendIds.forEach((fid) => {
         rows.push({
           id: `u${fid}`,
