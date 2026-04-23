@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "tsc -b && vite build",
+    "build": "tsc -b && vite build && node -e \"require('fs').copyFileSync('serve.json','dist/serve.json')\"",
     "preview": "vite preview --host",
     "start": "serve -s dist",
     "typecheck": "tsc -b --noEmit"

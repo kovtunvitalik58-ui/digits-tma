@@ -1,7 +1,5 @@
 {
   "$schema": "https://json.schemastore.org/serve",
-  "public": "dist",
-  "cleanUrls": false,
   "rewrites": [
     { "source": "**", "destination": "/index.html" }
   ],
