@@ -38,12 +38,16 @@ export default function App() {
 
   // If today's puzzle was already finished, surface the saved result so
   // reopening the app doesn't make the player restart or lose their score.
+  // Also restore the final board state so the player sees what they left
+  // behind — not a fresh puzzle underneath the victory sheet.
   useEffect(() => {
     loadDailyResult(kyivIsoDate()).then((r) => {
       if (!r) return;
       setTodayResult(r);
+      if (r.finalState) game.actions.restore(r.finalState);
       setVictoryOpen(true);
     });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Pick up referral on first open. Runs every launch so an existing player
@@ -85,6 +89,7 @@ export default function App() {
       distance: game.closestValue.dist === Infinity ? 0 : game.closestValue.dist,
       opsUsed,
       finishedAt: Date.now(),
+      finalState: game.state.puzzle,
     };
     saveDailyResult(result).catch(() => void 0);
     setTodayResult(result);

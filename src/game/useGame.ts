@@ -27,6 +27,7 @@ type Action =
   | { type: 'reset' }
   | { type: 'finish' }
   | { type: 'load'; puzzle: Puzzle }
+  | { type: 'restore'; state: PuzzleState }
   | { type: 'clear-toast' };
 
 function initialize(puzzle: Puzzle): UIState {
@@ -37,6 +38,9 @@ function reducer(state: UIState, action: Action): UIState {
   switch (action.type) {
     case 'load':
       return initialize(action.puzzle);
+
+    case 'restore':
+      return { puzzle: action.state, selection: { phase: 'idle' }, toast: null };
 
     case 'reset':
       return { ...state, puzzle: reset(state.puzzle), selection: { phase: 'idle' }, toast: null };
@@ -120,6 +124,9 @@ export function useGame(puzzle: Puzzle) {
   const loadPuzzle = useCallback((p: Puzzle) => {
     dispatch({ type: 'load', puzzle: p });
   }, []);
+  const restoreState = useCallback((s: PuzzleState) => {
+    dispatch({ type: 'restore', state: s });
+  }, []);
   const clearToast = useCallback(() => {
     dispatch({ type: 'clear-toast' });
   }, []);
@@ -177,6 +184,7 @@ export function useGame(puzzle: Puzzle) {
       reset: doReset,
       finish: doFinish,
       load: loadPuzzle,
+      restore: restoreState,
       clearToast,
     },
   };

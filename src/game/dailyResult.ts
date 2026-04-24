@@ -1,4 +1,4 @@
-import type { Stars } from './types';
+import type { PuzzleState, Stars } from './types';
 import { storage } from '../lib/telegram';
 
 export type DailyResult = {
@@ -10,6 +10,11 @@ export type DailyResult = {
   distance: number;
   opsUsed: number;
   finishedAt: number; // unix ms
+  /** Full board state at the moment of finishing — lets a reopened app
+   *  restore exactly what the player saw instead of a fresh puzzle.
+   *  Optional because older results saved before this field was added
+   *  won't have it. */
+  finalState?: PuzzleState;
 };
 
 const KEY_PREFIX = 'daily:';
