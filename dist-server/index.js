@@ -3,7 +3,7 @@ import cron from 'node-cron';
 import path from 'node:path';
 import fs from 'node:fs';
 import { validateInitData } from './initData.js';
-import { addFriendship, allUserIds, friendsOf, putResult, resultsOn, touchUser, } from './db.js';
+import { addFriendship, allUserIds, friendsOf, load as loadDB, putResult, resultsOn, touchUser, } from './db.js';
 import { sendMessage } from './telegram.js';
 const BOT_TOKEN = process.env.BOT_TOKEN ?? '';
 const PORT = Number(process.env.PORT) || 3000;
@@ -43,23 +43,37 @@ function authed(body) {
 }
 app.post('/api/register', (req, res) => {
     const user = authed(req.body);
-    if (!user)
+    if (!user) {
+        console.log('[register] 401 — bad initData');
         return res.status(401).json({ ok: false });
+    }
     touchUser(user.id, {
         firstName: user.first_name,
         username: user.username,
         languageCode: user.language_code,
     });
     // Optional referrer — from the same initData, the mini-app passes
-    // `start_param` in the body if it looked like a `ref_<id>`.
+    // `start_param` in the body if it looked like a `ref_<id>`. We also log
+    // the raw `startParam` the client saw so we can tell whether Telegram
+    // dropped it vs. our parsing failed.
     const body = req.body;
-    const referrer = Number(body.referrer);
+    const rawStartParam = body.startParam;
+    // Fallback: if the client didn't parse a referrer but Telegram gave us a
+    // ref_<id> start_param, parse it here.
+    let referrer = Number(body.referrer);
+    if ((!Number.isFinite(referrer) || referrer <= 0) && typeof rawStartParam === 'string') {
+        const m = /^ref_(\d+)$/.exec(rawStartParam);
+        if (m)
+            referrer = Number(m[1]);
+    }
+    let linked = false;
     if (Number.isFinite(referrer) && referrer > 0 && referrer !== user.id) {
         addFriendship(user.id, referrer);
+        linked = true;
     }
-    // Return the up-to-date friend id list so the inviter's client can
-    // cache it — otherwise only the invitee ever sees the edge locally.
-    return res.json({ ok: true, friends: friendsOf(user.id) });
+    const friends = friendsOf(user.id);
+    console.log(`[register] user=${user.id} ref=${body.referrer ?? '-'} startParam=${JSON.stringify(rawStartParam)} linked=${linked} friends=${friends.length}`);
+    return res.json({ ok: true, friends });
 });
 app.post('/api/result', async (req, res) => {
     const user = authed(req.body);
@@ -110,6 +124,19 @@ app.post('/api/result', async (req, res) => {
     const text = `🧮 ${name} щойно розв'язав сьогоднішній Digits — ${starStr}. Спробуй побити?`;
     await Promise.all(notifyCandidates.map((fid) => sendMessage(fid, text, { openAppButton: 'Грати' })));
     return res.json({ ok: true, notified: notifyCandidates.length });
+});
+/** Token-gated debug dump — used for operational sanity checks. The caller
+ *  has to know the bot token so only the operator can see it. */
+app.get('/api/debug/stats', (req, res) => {
+    if (!BOT_TOKEN || req.query.token !== BOT_TOKEN) {
+        return res.status(401).json({ ok: false });
+    }
+    const db = loadDB();
+    return res.json({
+        users: Object.keys(db.users).length,
+        friendEdges: Object.fromEntries(Object.entries(db.friends).map(([k, v]) => [k, v.length])),
+        resultsByDay: Object.fromEntries(Object.entries(db.results).map(([d, day]) => [d, Object.keys(day).length])),
+    });
 });
 // Static files — bundle + serve.json headers.
 const serveJsonPath = path.join(DIST, 'serve.json');

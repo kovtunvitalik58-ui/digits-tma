@@ -66,9 +66,18 @@ app.post('/api/register', (req, res) => {
     languageCode: user.language_code,
   });
   // Optional referrer — from the same initData, the mini-app passes
-  // `start_param` in the body if it looked like a `ref_<id>`.
-  const body = req.body as { referrer?: unknown };
-  const referrer = Number(body.referrer);
+  // `start_param` in the body if it looked like a `ref_<id>`. We also log
+  // the raw `startParam` the client saw so we can tell whether Telegram
+  // dropped it vs. our parsing failed.
+  const body = req.body as { referrer?: unknown; startParam?: unknown };
+  const rawStartParam = body.startParam;
+  // Fallback: if the client didn't parse a referrer but Telegram gave us a
+  // ref_<id> start_param, parse it here.
+  let referrer = Number(body.referrer);
+  if ((!Number.isFinite(referrer) || referrer <= 0) && typeof rawStartParam === 'string') {
+    const m = /^ref_(\d+)$/.exec(rawStartParam);
+    if (m) referrer = Number(m[1]);
+  }
   let linked = false;
   if (Number.isFinite(referrer) && referrer > 0 && referrer !== user.id) {
     addFriendship(user.id, referrer);
@@ -76,7 +85,7 @@ app.post('/api/register', (req, res) => {
   }
   const friends = friendsOf(user.id);
   console.log(
-    `[register] user=${user.id} ref=${body.referrer ?? '-'} linked=${linked} friends=${friends.length}`,
+    `[register] user=${user.id} ref=${body.referrer ?? '-'} startParam=${JSON.stringify(rawStartParam)} linked=${linked} friends=${friends.length}`,
   );
   return res.json({ ok: true, friends });
 });

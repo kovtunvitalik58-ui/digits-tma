@@ -30,10 +30,11 @@ async function post<T = unknown>(
  *  CloudStorage so inviters also see their invitees without needing to be
  *  invited back. */
 export async function registerUser(referrer: number | null = null): Promise<void> {
-  const r = await post<{ ok: boolean; friends?: string[] }>(
-    '/api/register',
-    referrer !== null ? { referrer } : {},
-  );
+  const startParam = tg()?.initDataUnsafe?.start_param ?? null;
+  const r = await post<{ ok: boolean; friends?: string[] }>('/api/register', {
+    ...(referrer !== null ? { referrer } : {}),
+    startParam,
+  });
   if (!r?.friends || r.friends.length === 0) return;
   const ids = r.friends.map((x) => Number(x)).filter((n) => Number.isFinite(n));
   if (ids.length > 0) mergeFriendIds(ids).catch(() => void 0);
