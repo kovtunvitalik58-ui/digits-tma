@@ -21,15 +21,21 @@ export function OpButton({ op, selected, enabled, onPick }: Props) {
       onClick={() => enabled && onPick(op)}
       disabled={!enabled}
       className={
-        'h-14 w-14 rounded-2xl flex items-center justify-center text-3xl font-semibold ' +
+        'relative h-14 w-14 rounded-2xl flex items-center justify-center text-3xl font-semibold overflow-hidden ' +
         (selected
-          ? 'bg-white text-slate-900 shadow-pop'
-          : 'bg-surface text-text shadow-card')
+          ? 'bg-gradient-to-br from-indigo-400 to-violet-500 text-white glow-accent border border-white/30'
+          : 'glass glass-raise text-text')
       }
       aria-pressed={selected}
       aria-label={`Operation ${op}`}
     >
-      {OP_LABEL[op]}
+      {!selected && (
+        <span
+          aria-hidden
+          className="absolute inset-x-0 top-0 h-1/2 rounded-t-2xl bg-gradient-to-b from-white/10 to-transparent pointer-events-none"
+        />
+      )}
+      <span className="relative z-10">{OP_LABEL[op]}</span>
     </motion.button>
   );
 }

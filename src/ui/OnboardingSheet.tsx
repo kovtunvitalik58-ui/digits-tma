@@ -23,7 +23,7 @@ export function OnboardingSheet({ open, target, onClose }: Props) {
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
-          className="fixed inset-0 z-50 bg-black/70 flex items-center justify-center p-5"
+          className="fixed inset-0 z-50 bg-black/75 backdrop-blur-sm flex items-center justify-center p-5"
           onClick={onClose}
         >
           <motion.div
@@ -32,9 +32,9 @@ export function OnboardingSheet({ open, target, onClose }: Props) {
             exit={{ scale: 0.95, opacity: 0, y: 10 }}
             transition={{ type: 'spring', stiffness: 360, damping: 28 }}
             onClick={(e) => e.stopPropagation()}
-            className="w-full max-w-sm bg-surface rounded-3xl shadow-pop overflow-hidden flex flex-col"
+            className="relative w-full max-w-sm glass-strong glass-raise rounded-[28px] shadow-pop overflow-hidden flex flex-col"
           >
-            <div className="relative h-56 bg-bg/60 flex items-center justify-center overflow-hidden">
+            <div className="relative h-56 bg-gradient-to-br from-indigo-500/15 via-violet-500/10 to-fuchsia-500/5 flex items-center justify-center overflow-hidden border-b border-white/5">
               <AnimatePresence mode="wait">
                 <motion.div
                   key={step}
@@ -58,7 +58,7 @@ export function OnboardingSheet({ open, target, onClose }: Props) {
                   exit={{ opacity: 0, y: -8 }}
                   transition={{ duration: 0.2 }}
                 >
-                  <h2 className="text-xl font-bold text-center">{steps[step].title}</h2>
+                  <h2 className="text-xl font-bold text-center bg-gradient-to-b from-white to-white/70 bg-clip-text text-transparent">{steps[step].title}</h2>
                   <p className="mt-2 text-center text-sm text-hint leading-relaxed">
                     {steps[step].body}
                   </p>
@@ -86,16 +86,17 @@ export function OnboardingSheet({ open, target, onClose }: Props) {
                 {step > 0 && (
                   <button
                     onClick={() => setStep(step - 1)}
-                    className="h-12 px-5 rounded-2xl bg-bg/60 text-text font-medium text-sm active:brightness-110"
+                    className="h-12 px-5 rounded-2xl glass text-text font-medium text-sm active:brightness-110"
                   >
                     Назад
                   </button>
                 )}
                 <button
                   onClick={() => (last ? onClose() : setStep(step + 1))}
-                  className="flex-1 h-12 rounded-2xl bg-accent text-white font-semibold text-base shadow-pop active:brightness-110"
+                  className="relative overflow-hidden flex-1 h-12 rounded-2xl bg-gradient-to-br from-indigo-400 to-violet-500 text-white font-semibold text-base glow-accent border border-white/25 active:brightness-110"
                 >
-                  {last ? 'Грати' : 'Далі'}
+                  <span aria-hidden className="absolute inset-x-0 top-0 h-1/2 rounded-t-2xl bg-gradient-to-b from-white/15 to-transparent pointer-events-none" />
+                  <span className="relative z-10">{last ? 'Грати' : 'Далі'}</span>
                 </button>
               </div>
             </div>
@@ -293,7 +294,7 @@ function StarsDemo({ target }: { target: number }) {
             x: phase > i ? 0 : -16,
           }}
           transition={{ type: 'spring', stiffness: 300, damping: 22 }}
-          className="flex items-center gap-3 px-3 py-1.5 rounded-xl bg-bg/50"
+          className="flex items-center gap-3 px-3 py-1.5 rounded-xl glass"
         >
           <span className="w-10 text-right tabular-nums font-semibold">{r.label}</span>
           <span className="text-[11px] text-hint w-10">{r.diff}</span>
@@ -330,10 +331,10 @@ function DemoCard({
 }) {
   const bg =
     tone === 'result'
-      ? 'bg-accent/25 ring-2 ring-accent'
+      ? 'bg-gradient-to-br from-indigo-400/40 to-violet-500/40 border border-accent/60 glow-accent text-white'
       : active
-        ? 'bg-surface ring-2 ring-accent shadow-pop'
-        : 'bg-surface/80 ring-1 ring-white/5';
+        ? 'bg-gradient-to-br from-indigo-400 to-violet-500 border border-white/25 glow-accent text-white'
+        : 'glass glass-raise text-text';
   return (
     <motion.div
       animate={{ scale: active ? 1.08 : 1 }}
@@ -353,8 +354,8 @@ function DemoOp({ symbol, active }: { symbol: string; active: boolean }) {
       className={
         'w-10 h-10 rounded-xl flex items-center justify-center text-xl font-bold ' +
         (active
-          ? 'bg-accent text-white shadow-pop'
-          : 'bg-surface/70 text-hint ring-1 ring-white/5')
+          ? 'bg-gradient-to-br from-indigo-400 to-violet-500 text-white border border-white/25 glow-accent'
+          : 'glass text-hint')
       }
     >
       {symbol}

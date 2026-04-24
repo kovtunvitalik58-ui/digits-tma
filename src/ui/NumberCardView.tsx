@@ -21,34 +21,35 @@ export function NumberCardView({ card, selected, frozen, preview, winning, onPic
   const previewActive = preview !== undefined;
   const invalid = previewActive && preview === null;
 
+  const base =
+    'relative w-full h-full rounded-3xl flex items-center justify-center ' +
+    'text-[clamp(1rem,6cqmin,1.75rem)] font-semibold tabular-nums select-none ' +
+    'transition-colors overflow-hidden';
+
+  const stateClass = selected
+    ? 'text-white glow-accent border border-white/25 bg-gradient-to-br from-indigo-400/80 to-violet-500/80'
+    : used
+      ? 'glass text-hint'
+      : winning
+        ? 'glass-strong glass-raise text-text ring-2 ring-amber-300/80 glow-amber'
+        : 'glass glass-raise text-text';
+
   return (
     <motion.button
       layout
       layoutId={`card-${card.id}`}
       initial={{ scale: 0.6, opacity: 0 }}
       animate={{
-        // Scale down for used cards. Selected cards don't grow — they lift
-        // slightly via y so the bottom row never clips into the ops bar.
         scale: used ? 0.88 : 1,
         y: selected ? -3 : 0,
-        opacity: used ? 0.28 : invalid ? 0.55 : frozen ? 0.5 : 1,
+        opacity: used ? 0.35 : invalid ? 0.55 : frozen ? 0.55 : 1,
       }}
       transition={{ type: 'spring', stiffness: 420, damping: 28, mass: 0.7 }}
       whileTap={clickable ? { scale: 0.95 } : undefined}
       onClick={() => clickable && onPick(card.id)}
       disabled={!clickable}
       aria-disabled={!clickable}
-      className={
-        'relative w-full h-full rounded-2xl flex items-center justify-center ' +
-        'text-[clamp(1rem,6cqmin,1.75rem)] font-semibold tabular-nums select-none transition-colors ' +
-        (selected
-          ? 'bg-accent text-white shadow-pop ring-2 ring-white/40 brightness-110'
-          : used
-            ? 'bg-surface/40 text-hint shadow-none ring-1 ring-white/5'
-            : winning
-              ? 'bg-surface text-text shadow-pop ring-2 ring-amber-400'
-              : 'bg-surface text-text shadow-card active:brightness-110')
-      }
+      className={base + ' ' + stateClass}
       aria-pressed={selected}
       aria-label={
         `Число ${card.value}` +
@@ -58,7 +59,20 @@ export function NumberCardView({ card, selected, frozen, preview, winning, onPic
       data-card-id={card.id}
       data-used={used ? 'true' : 'false'}
     >
-      <span className={used ? 'line-through decoration-hint/60 decoration-[2px]' : ''}>
+      {/* Top-gloss reflection — tiny white sheen on the upper third. */}
+      {!used && (
+        <span
+          aria-hidden
+          className="absolute inset-x-0 top-0 h-1/2 rounded-t-3xl bg-gradient-to-b from-white/10 to-transparent pointer-events-none"
+        />
+      )}
+
+      <span
+        className={
+          'relative z-10 ' +
+          (used ? 'line-through decoration-hint/50 decoration-[2px]' : '')
+        }
+      >
         {card.value}
       </span>
 
@@ -73,12 +87,12 @@ export function NumberCardView({ card, selected, frozen, preview, winning, onPic
             className={
               'absolute -top-1.5 -right-1.5 min-w-[28px] h-6 px-1.5 rounded-full ' +
               'flex items-center justify-center text-[11px] font-semibold tabular-nums ' +
-              'ring-2 ring-bg ' +
+              'ring-2 ring-[color:var(--tg-bg)] z-20 ' +
               (invalid
-                ? 'bg-surface text-hint/80'
+                ? 'bg-white/10 text-hint/80 backdrop-blur'
                 : winning
-                  ? 'bg-amber-400 text-slate-900'
-                  : 'bg-accent text-white')
+                  ? 'bg-amber-300 text-slate-900 shadow-[0_4px_14px_rgba(251,191,36,0.55)]'
+                  : 'bg-accent text-white shadow-[0_4px_14px_rgba(129,140,248,0.6)]')
             }
             aria-hidden
           >

@@ -25,7 +25,7 @@ export function LeaderboardSheet({ open, onClose }: Props) {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-black/50 z-40"
+            className="fixed inset-0 bg-black/60 backdrop-blur-sm z-40"
             onClick={onClose}
           />
           <motion.div
@@ -33,10 +33,10 @@ export function LeaderboardSheet({ open, onClose }: Props) {
             animate={{ y: 0 }}
             exit={{ y: '100%' }}
             transition={{ type: 'spring', stiffness: 340, damping: 32 }}
-            className="fixed bottom-0 left-0 right-0 z-50 bg-surface rounded-t-3xl pt-4 safe-bottom max-h-[85dvh] flex flex-col"
+            className="fixed bottom-0 left-0 right-0 z-50 glass-strong glass-raise rounded-t-[32px] pt-4 safe-bottom max-h-[85dvh] flex flex-col"
           >
-            <div className="mx-auto mb-2 w-12 h-1.5 rounded-full bg-hint/40" />
-            <h2 className="text-xl font-bold text-center px-6">Лідерборд</h2>
+            <div className="mx-auto mb-2 w-12 h-1.5 rounded-full bg-white/25" />
+            <h2 className="text-xl font-bold text-center px-6 bg-gradient-to-b from-white to-white/70 bg-clip-text text-transparent">Лідерборд</h2>
             <TabSwitch value={tab} onChange={setTab} />
             <div className="flex-1 min-h-[320px] overflow-y-auto px-4 pb-6">
               <FriendsList tab={tab} />
@@ -50,9 +50,9 @@ export function LeaderboardSheet({ open, onClose }: Props) {
 
 function TabSwitch({ value, onChange }: { value: Tab; onChange: (t: Tab) => void }) {
   return (
-    <div className="mx-6 mt-4 mb-3 p-1 bg-bg/70 rounded-full grid grid-cols-2 relative">
+    <div className="mx-6 mt-4 mb-3 p-1 rounded-full grid grid-cols-2 relative bg-black/30 border border-white/5">
       <motion.div
-        className="absolute top-1 bottom-1 w-[calc(50%-4px)] rounded-full bg-accent shadow-pop"
+        className="absolute top-1 bottom-1 w-[calc(50%-4px)] rounded-full bg-gradient-to-br from-indigo-400 to-violet-500 glow-accent"
         animate={{ x: value === 'today' ? 0 : 'calc(100% + 8px)' }}
         transition={{ type: 'spring', stiffness: 480, damping: 32 }}
       />
@@ -164,8 +164,10 @@ function RowList({ rows, tab }: { rows: Row[]; tab: Tab }) {
         <li
           key={r.id}
           className={
-            'flex items-center gap-3 h-12 px-3 rounded-xl ' +
-            (r.isMe ? 'bg-accent/15 ring-1 ring-accent/40' : 'bg-bg/40')
+            'flex items-center gap-3 h-12 px-3 rounded-2xl ' +
+            (r.isMe
+              ? 'bg-gradient-to-r from-indigo-500/25 to-violet-500/15 border border-indigo-400/40'
+              : 'glass')
           }
         >
           <span className="w-6 text-center text-sm text-hint tabular-nums">{r.rank}</span>
@@ -260,14 +262,14 @@ function Avatar({ name, photoUrl }: { name: string; photoUrl?: string }) {
       <img
         src={photoUrl}
         alt=""
-        className="w-8 h-8 rounded-full object-cover ring-1 ring-white/5"
+        className="w-8 h-8 rounded-full object-cover ring-1 ring-white/10"
         onError={() => setBroken(true)}
       />
     );
   }
   const initial = name.charAt(0).toUpperCase() || '?';
   return (
-    <div className="w-8 h-8 rounded-full bg-bg/80 ring-1 ring-white/5 flex items-center justify-center text-sm font-semibold text-hint">
+    <div className="w-8 h-8 rounded-full bg-gradient-to-br from-indigo-500/40 to-violet-500/40 ring-1 ring-white/10 flex items-center justify-center text-sm font-semibold text-text">
       {initial}
     </div>
   );

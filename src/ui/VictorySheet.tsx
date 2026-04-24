@@ -31,7 +31,7 @@ export function VictorySheet({
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-black/50 z-40"
+            className="fixed inset-0 bg-black/60 backdrop-blur-sm z-40"
             onClick={onClose}
           />
           <motion.div
@@ -39,10 +39,10 @@ export function VictorySheet({
             animate={{ y: 0 }}
             exit={{ y: '100%' }}
             transition={{ type: 'spring', stiffness: 340, damping: 32 }}
-            className="fixed bottom-0 left-0 right-0 z-50 bg-surface rounded-t-3xl p-6 pt-4 safe-bottom"
+            className="fixed bottom-0 left-0 right-0 z-50 glass-strong glass-raise rounded-t-[32px] p-6 pt-4 safe-bottom"
           >
-            <div className="mx-auto mb-4 w-12 h-1.5 rounded-full bg-hint/40" />
-            <h2 className="text-2xl font-bold text-center">{title(stars)}</h2>
+            <div className="mx-auto mb-4 w-12 h-1.5 rounded-full bg-white/25" />
+            <h2 className="text-2xl font-bold text-center bg-gradient-to-b from-white to-white/70 bg-clip-text text-transparent">{title(stars)}</h2>
             <div className="mt-4 flex justify-center gap-2">
               {[1, 2, 3].map((i) => (
                 <Star key={i} filled={i <= stars} index={i} />
@@ -63,22 +63,23 @@ export function VictorySheet({
               )}
               <span className="opacity-40"> · {opsUsed} ход{ruPlural(opsUsed, '', 'и', 'ів')}</span>
             </div>
-            <div className="mt-6 grid grid-cols-[1fr_auto] gap-2">
+            <div className="mt-6 grid grid-cols-[1fr_auto] gap-2.5">
               <button
                 onClick={onShare}
-                className="h-12 rounded-2xl bg-accent text-white font-semibold text-base shadow-pop active:brightness-110 flex items-center justify-center gap-2"
+                className="relative overflow-hidden h-12 rounded-2xl bg-gradient-to-br from-indigo-400 to-violet-500 text-white font-semibold text-base glow-accent border border-white/25 active:brightness-110 flex items-center justify-center gap-2"
               >
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                <span aria-hidden className="absolute inset-x-0 top-0 h-1/2 rounded-t-2xl bg-gradient-to-b from-white/15 to-transparent pointer-events-none" />
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" className="relative z-10">
                   <path d="M4 12v7a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-7" />
                   <polyline points="16 6 12 2 8 6" />
                   <line x1="12" y1="2" x2="12" y2="15" />
                 </svg>
-                Поділитись
+                <span className="relative z-10">Поділитись</span>
               </button>
               <button
                 onClick={onClose}
                 aria-label="Закрити"
-                className="h-12 px-4 rounded-2xl bg-surface/60 text-text font-medium text-sm active:brightness-110"
+                className="h-12 px-4 rounded-2xl glass text-text font-medium text-sm active:brightness-110"
               >
                 Закрити
               </button>
