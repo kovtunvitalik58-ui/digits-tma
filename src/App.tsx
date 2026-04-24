@@ -183,15 +183,19 @@ function GameApp() {
 
   const onShare = async () => {
     haptic.tap();
-    const text = buildShareText({
-      target: puzzleState.target,
-      stars,
-      closest: game.closestValue.value,
-      distance: game.closestValue.dist === Infinity ? 0 : game.closestValue.dist,
-      opsUsed,
-      dateId: puzzleState.id,
-    });
     const url = buildReferralUrl(getUserId());
+    // Before the puzzle is finished the "result" is just a 0-star placeholder
+    // — share an invite blurb instead so the recipient gets an actual hook.
+    const text = todayResult
+      ? buildShareText({
+          target: puzzleState.target,
+          stars: displayStars,
+          closest: displayClosest,
+          distance: displayDistance,
+          opsUsed: displayOpsUsed,
+          dateId: puzzleState.id,
+        })
+      : `Digits — щоденний математичний пазл. Спробуй сьогоднішній:`;
     await shareResult(text, url);
   };
 
@@ -211,6 +215,7 @@ function GameApp() {
         streak={stats?.streak ?? 0}
         onOpenLeaderboard={openLeaderboard}
         onOpenHelp={openOnboarding}
+        onShare={onShare}
       />
 
       <Header target={puzzleState.target} liveStars={game.liveStars} />
@@ -298,10 +303,12 @@ function TopBar({
   streak,
   onOpenLeaderboard,
   onOpenHelp,
+  onShare,
 }: {
   streak: number;
   onOpenLeaderboard: () => void;
   onOpenHelp: () => void;
+  onShare: () => void;
 }) {
   return (
     <div className="flex items-center justify-between px-4 h-11">
@@ -328,6 +335,26 @@ function TopBar({
             <circle cx="12" cy="12" r="10" />
             <path d="M9.1 9a3 3 0 0 1 5.82 1c0 2-3 3-3 3" />
             <line x1="12" y1="17" x2="12.01" y2="17" />
+          </svg>
+        </button>
+        <button
+          onClick={onShare}
+          aria-label="Поділитись"
+          className="w-9 h-9 rounded-full flex items-center justify-center text-hint active:text-text active:bg-surface/60"
+        >
+          <svg
+            width="20"
+            height="20"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          >
+            <path d="M4 12v7a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-7" />
+            <polyline points="16 6 12 2 8 6" />
+            <line x1="12" y1="2" x2="12" y2="15" />
           </svg>
         </button>
         <button
