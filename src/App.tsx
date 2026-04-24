@@ -59,28 +59,19 @@ export default function App() {
   }, []);
 
   // Hydrate today's result from CloudStorage. Runs even when localStorage
-  // already gave us a value — a newer copy from another device wins. If we
-  // started without a sync hit, a short deadline flips `hydrated` regardless
-  // so first-time players aren't stuck behind the fade-in.
+  // already gave us a value — a newer copy from another device wins. The
+  // board stays hidden until this resolves so players never see a fresh
+  // deal before the restored state lands (storage.get caps at 1.5 s, so the
+  // worst-case blank for a first-time player is bounded).
   useEffect(() => {
-    let settled = false;
-    const deadline = setTimeout(() => {
-      if (settled) return;
-      settled = true;
-      setHydrated(true);
-    }, 400);
     loadDailyResult(kyivIsoDate()).then((r) => {
       if (r && (!initialDaily || r.finishedAt > initialDaily.finishedAt)) {
         setTodayResult(r);
         if (r.finalState) game.actions.restore(r.finalState);
         setVictoryOpen(true);
       }
-      if (settled) return;
-      settled = true;
-      clearTimeout(deadline);
       setHydrated(true);
     });
-    return () => clearTimeout(deadline);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
