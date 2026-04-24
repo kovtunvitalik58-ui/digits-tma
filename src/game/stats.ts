@@ -29,6 +29,19 @@ export async function loadStats(): Promise<Stats> {
   return { ...DEFAULT, ...(saved ?? {}) };
 }
 
+/** Synchronous read for first-paint UI (leaderboard me-row). `storage.set`
+ *  mirrors writes into localStorage, so the local copy is authoritative on
+ *  this device. */
+export function loadStatsSync(): Stats {
+  try {
+    const raw = localStorage.getItem('digits:' + KEY);
+    if (!raw) return DEFAULT;
+    return { ...DEFAULT, ...(JSON.parse(raw) as Partial<Stats>) };
+  } catch {
+    return DEFAULT;
+  }
+}
+
 export async function saveStats(s: Stats): Promise<void> {
   await storage.setJSON(KEY, s);
 }

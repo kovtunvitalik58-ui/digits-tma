@@ -3,10 +3,11 @@ import { useEffect, useState } from 'react';
 import { getFriendIds } from '../game/friends';
 import { getUser, getUserDisplayName } from '../lib/telegram';
 import { loadDailyResult, loadDailyResultSync } from '../game/dailyResult';
+import { loadStats, loadStatsSync } from '../game/stats';
 import { kyivIsoDate } from '../lib/kyivDate';
 import type { Stars } from '../game/types';
 
-type Tab = 'friends' | 'global';
+type Tab = 'today' | 'all';
 
 type Props = {
   open: boolean;
@@ -14,7 +15,7 @@ type Props = {
 };
 
 export function LeaderboardSheet({ open, onClose }: Props) {
-  const [tab, setTab] = useState<Tab>('friends');
+  const [tab, setTab] = useState<Tab>('today');
 
   return (
     <AnimatePresence>
@@ -38,7 +39,7 @@ export function LeaderboardSheet({ open, onClose }: Props) {
             <h2 className="text-xl font-bold text-center px-6">Лідерборд</h2>
             <TabSwitch value={tab} onChange={setTab} />
             <div className="flex-1 min-h-[320px] overflow-y-auto px-4 pb-6">
-              {tab === 'friends' ? <FriendsList /> : <GlobalList />}
+              <FriendsList tab={tab} />
             </div>
           </motion.div>
         </>
@@ -52,10 +53,10 @@ function TabSwitch({ value, onChange }: { value: Tab; onChange: (t: Tab) => void
     <div className="mx-6 mt-4 mb-3 p-1 bg-bg/70 rounded-full grid grid-cols-2 relative">
       <motion.div
         className="absolute top-1 bottom-1 w-[calc(50%-4px)] rounded-full bg-accent shadow-pop"
-        animate={{ x: value === 'friends' ? 0 : 'calc(100% + 8px)' }}
+        animate={{ x: value === 'today' ? 0 : 'calc(100% + 8px)' }}
         transition={{ type: 'spring', stiffness: 480, damping: 32 }}
       />
-      {(['friends', 'global'] as const).map((t) => (
+      {(['today', 'all'] as const).map((t) => (
         <button
           key={t}
           onClick={() => onChange(t)}
@@ -64,7 +65,7 @@ function TabSwitch({ value, onChange }: { value: Tab; onChange: (t: Tab) => void
             (value === t ? 'text-white' : 'text-hint')
           }
         >
-          {t === 'friends' ? 'Друзі' : 'Глобальний'}
+          {t === 'today' ? 'Сьогодні' : 'За весь час'}
         </button>
       ))}
     </div>
@@ -76,20 +77,22 @@ type Row = {
   rank: number;
   name: string;
   photoUrl?: string;
+  /** Today's daily result — shown in the "Сьогодні" tab. */
   stars?: Stars;
   opsUsed?: number;
+  /** Sum of stars earned across every solved daily — shown in "За весь час". */
+  totalStars?: number;
   isMe?: boolean;
 };
 
-function FriendsList() {
-  // Render the "me" row synchronously so the leaderboard is never blank —
-  // even if storage reads are slow or hang on a particular Telegram client.
-  // Today's stars come from the localStorage-backed sync read so the row
-  // lands with the correct score in the same frame the sheet opens;
-  // CloudStorage fills in friends and any newer cross-device result after.
+function FriendsList({ tab }: { tab: Tab }) {
+  // Render the "me" row synchronously so the leaderboard is never blank,
+  // and seed both scores (today's + all-time) so switching tabs doesn't
+  // reveal an empty cell until async storage resolves.
   const me = getUser();
   const today = kyivIsoDate();
   const myTodaySync = loadDailyResultSync(today);
+  const myStatsSync = loadStatsSync();
   const meRowInitial: Row = {
     id: me ? `u${me.id}` : 'me',
     rank: 1,
@@ -97,6 +100,7 @@ function FriendsList() {
     photoUrl: me?.photo_url,
     stars: myTodaySync?.stars,
     opsUsed: myTodaySync?.opsUsed,
+    totalStars: myStatsSync.totalStars,
     isMe: true,
   };
   const [rows, setRows] = useState<Row[]>([meRowInitial]);
@@ -104,10 +108,10 @@ function FriendsList() {
   useEffect(() => {
     let cancelled = false;
     (async () => {
-      // TODO: replace with `fetch('/api/leaderboard/friends')` once backend is up.
-      const [friendIds, myToday] = await Promise.all([
+      const [friendIds, myToday, myStats] = await Promise.all([
         getFriendIds(),
         loadDailyResult(today),
+        loadStats(),
       ]);
       if (cancelled) return;
       const next: Row[] = [
@@ -115,6 +119,7 @@ function FriendsList() {
           ...meRowInitial,
           stars: myToday?.stars ?? meRowInitial.stars,
           opsUsed: myToday?.opsUsed ?? meRowInitial.opsUsed,
+          totalStars: myStats.totalStars,
         },
       ];
       friendIds.forEach((fid) => {
@@ -132,27 +137,27 @@ function FriendsList() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // All-time view ranks rows by totalStars (descending). Today view keeps
+  // the server-assigned order (self first, then friends).
+  const viewRows =
+    tab === 'all'
+      ? [...rows]
+          .sort((a, b) => (b.totalStars ?? 0) - (a.totalStars ?? 0))
+          .map((r, i) => ({ ...r, rank: i + 1 }))
+      : rows;
+
   if (rows.length === 1) {
     return (
       <>
-        <RowList rows={rows} />
+        <RowList rows={viewRows} tab={tab} />
         <InviteHint />
       </>
     );
   }
-  return <RowList rows={rows} />;
+  return <RowList rows={viewRows} tab={tab} />;
 }
 
-function GlobalList() {
-  // TODO: replace with `fetch('/api/leaderboard/global?period=daily')`.
-  // While there's no backend, render the empty state synchronously so
-  // switching to this tab doesn't flash a skeleton or resize the sheet.
-  const rows: Row[] = [];
-  if (rows.length === 0) return <EmptyGlobal />;
-  return <RowList rows={rows} />;
-}
-
-function RowList({ rows }: { rows: Row[] }) {
+function RowList({ rows, tab }: { rows: Row[]; tab: Tab }) {
   return (
     <ul className="flex flex-col gap-1 pt-2">
       {rows.map((r) => (
@@ -166,14 +171,18 @@ function RowList({ rows }: { rows: Row[] }) {
           <span className="w-6 text-center text-sm text-hint tabular-nums">{r.rank}</span>
           <Avatar name={r.name} photoUrl={r.photoUrl} />
           <span className="flex-1 truncate text-sm">{r.name}</span>
-          <Score stars={r.stars} opsUsed={r.opsUsed} />
+          {tab === 'today' ? (
+            <TodayScore stars={r.stars} opsUsed={r.opsUsed} />
+          ) : (
+            <AllTimeScore totalStars={r.totalStars} />
+          )}
         </li>
       ))}
     </ul>
   );
 }
 
-function Score({ stars, opsUsed }: { stars?: Stars; opsUsed?: number }) {
+function TodayScore({ stars, opsUsed }: { stars?: Stars; opsUsed?: number }) {
   if (stars === undefined) {
     return <span className="text-sm text-hint">—</span>;
   }
@@ -185,6 +194,28 @@ function Score({ stars, opsUsed }: { stars?: Stars; opsUsed?: number }) {
           {opsUsed} ход{plural(opsUsed, '', 'и', 'ів')}
         </span>
       )}
+    </div>
+  );
+}
+
+function AllTimeScore({ totalStars }: { totalStars?: number }) {
+  if (totalStars === undefined) {
+    return <span className="text-sm text-hint">—</span>;
+  }
+  return (
+    <div className="flex items-center gap-1">
+      <svg
+        width="14"
+        height="14"
+        viewBox="0 0 24 24"
+        fill="#fbbf24"
+        stroke="#fbbf24"
+        strokeWidth="2"
+        strokeLinejoin="round"
+      >
+        <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
+      </svg>
+      <span className="text-sm font-semibold tabular-nums">{totalStars}</span>
     </div>
   );
 }
@@ -242,47 +273,10 @@ function Avatar({ name, photoUrl }: { name: string; photoUrl?: string }) {
   );
 }
 
-function EmptyGlobal() {
-  return (
-    <EmptyState
-      title="Глобальний лідерборд скоро"
-      body="Щойно з'являться перші результати дня — побачиш топ-100 усіх гравців."
-    />
-  );
-}
-
 function InviteHint() {
   return (
     <p className="mt-4 text-center text-sm text-hint leading-relaxed px-4">
       Поділися сьогоднішнім результатом — друзі що відкриють гру з твого повідомлення з'являться тут автоматично.
     </p>
-  );
-}
-
-function EmptyState({ title, body }: { title: string; body: string }) {
-  return (
-    <div className="pt-12 pb-6 px-6 text-center">
-      <div className="mx-auto w-14 h-14 rounded-full bg-bg/60 flex items-center justify-center mb-4">
-        <svg
-          width="26"
-          height="26"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="2"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          className="text-hint"
-        >
-          <path d="M6 9H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h2" />
-          <path d="M18 9h2a2 2 0 0 0 2-2V5a2 2 0 0 0-2-2h-2" />
-          <path d="M6 3h12v8a6 6 0 0 1-12 0z" />
-          <path d="M10 21h4" />
-          <path d="M12 17v4" />
-        </svg>
-      </div>
-      <h3 className="text-base font-semibold mb-1">{title}</h3>
-      <p className="text-sm text-hint leading-relaxed">{body}</p>
-    </div>
   );
 }
