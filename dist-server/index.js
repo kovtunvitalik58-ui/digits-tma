@@ -1,0 +1,157 @@
+import express from 'express';
+import cron from 'node-cron';
+import path from 'node:path';
+import fs from 'node:fs';
+import { validateInitData } from './initData.js';
+import { addFriendship, allUserIds, friendsOf, putResult, resultsOn, touchUser, } from './db.js';
+import { sendMessage } from './telegram.js';
+const BOT_TOKEN = process.env.BOT_TOKEN ?? '';
+const PORT = Number(process.env.PORT) || 3000;
+const DIST = path.resolve(process.cwd(), 'dist');
+// --------------------------------------------------------------------------
+// Shared — Kyiv ISO date helper (mirror of src/lib/kyivDate.ts for the server).
+// --------------------------------------------------------------------------
+function kyivIsoDate(d = new Date()) {
+    // Europe/Kyiv in ISO — pick y-m-d from Intl in that tz.
+    const parts = new Intl.DateTimeFormat('en-CA', {
+        timeZone: 'Europe/Kyiv',
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+    }).formatToParts(d);
+    const y = parts.find((p) => p.type === 'year')?.value;
+    const m = parts.find((p) => p.type === 'month')?.value;
+    const day = parts.find((p) => p.type === 'day')?.value;
+    return `${y}-${m}-${day}`;
+}
+// --------------------------------------------------------------------------
+// Routes
+// --------------------------------------------------------------------------
+const app = express();
+app.use(express.json({ limit: '128kb' }));
+/** Pull + validate initData from the incoming body, returning the Telegram
+ *  user on success or null (caller responds with 401). */
+function authed(body) {
+    if (!BOT_TOKEN)
+        return null;
+    const raw = body && typeof body === 'object' && 'initData' in body
+        ? body.initData
+        : null;
+    if (typeof raw !== 'string' || !raw)
+        return null;
+    return validateInitData(raw, BOT_TOKEN);
+}
+app.post('/api/register', (req, res) => {
+    const user = authed(req.body);
+    if (!user)
+        return res.status(401).json({ ok: false });
+    touchUser(user.id, {
+        firstName: user.first_name,
+        username: user.username,
+        languageCode: user.language_code,
+    });
+    // Optional referrer — from the same initData, the mini-app passes
+    // `start_param` in the body if it looked like a `ref_<id>`.
+    const body = req.body;
+    const referrer = Number(body.referrer);
+    if (Number.isFinite(referrer) && referrer > 0 && referrer !== user.id) {
+        addFriendship(user.id, referrer);
+    }
+    return res.json({ ok: true });
+});
+app.post('/api/result', async (req, res) => {
+    const user = authed(req.body);
+    if (!user)
+        return res.status(401).json({ ok: false });
+    touchUser(user.id, {
+        firstName: user.first_name,
+        username: user.username,
+        languageCode: user.language_code,
+    });
+    const body = req.body;
+    const r = body.result;
+    if (!r ||
+        typeof r.stars !== 'number' ||
+        typeof r.opsUsed !== 'number' ||
+        typeof r.distance !== 'number' ||
+        typeof r.target !== 'number' ||
+        typeof r.dateId !== 'string') {
+        return res.status(400).json({ ok: false, error: 'bad-result' });
+    }
+    const dateId = r.dateId;
+    const day = resultsOn(dateId);
+    const alreadyFinished = Object.keys(day).filter((k) => k !== String(user.id));
+    const record = {
+        stars: Math.max(0, Math.min(3, r.stars)),
+        opsUsed: r.opsUsed,
+        closest: r.closest ?? null,
+        distance: r.distance,
+        target: r.target,
+        finishedAt: Date.now(),
+    };
+    putResult(dateId, user.id, record);
+    // Notify each friend whose first friend-of-the-day this is.
+    const friends = friendsOf(user.id);
+    const notifyCandidates = friends.filter((fid) => {
+        // Skip if the player themselves hasn't connected to that friend (the
+        // friendship list is bidirectional so this shouldn't happen, but belt
+        // and braces).
+        if (fid === String(user.id))
+            return false;
+        // Only notify if this is the first friend-of-theirs to finish today.
+        const friendsResultsToday = friendsOf(Number(fid)).filter((x) => x !== fid);
+        const anyAlreadyFinished = friendsResultsToday.some((x) => x !== String(user.id) && day[x] !== undefined && alreadyFinished.includes(x));
+        return !anyAlreadyFinished;
+    });
+    const name = user.first_name || user.username || 'Твій друг';
+    const starStr = '⭐'.repeat(record.stars) + '☆'.repeat(3 - record.stars);
+    const text = `🧮 ${name} щойно розв'язав сьогоднішній Digits — ${starStr}. Спробуй побити?`;
+    await Promise.all(notifyCandidates.map((fid) => sendMessage(fid, text, { openAppButton: 'Грати' })));
+    return res.json({ ok: true, notified: notifyCandidates.length });
+});
+// Static files — bundle + serve.json headers.
+const serveJsonPath = path.join(DIST, 'serve.json');
+let serveConfig = {};
+try {
+    if (fs.existsSync(serveJsonPath)) {
+        serveConfig = JSON.parse(fs.readFileSync(serveJsonPath, 'utf8'));
+    }
+}
+catch {
+    // Ignore — fall back to default express static caching.
+}
+app.use(express.static(DIST, {
+    setHeaders(res, filePath) {
+        if (!serveConfig.headers)
+            return;
+        const rel = path.relative(DIST, filePath).replace(/\\/g, '/');
+        for (const rule of serveConfig.headers) {
+            const re = new RegExp('^' + rule.source.replace(/\*\*/g, '.*').replace(/\*/g, '[^/]*') + '$');
+            if (re.test(rel)) {
+                for (const h of rule.headers)
+                    res.setHeader(h.key, h.value);
+            }
+        }
+    },
+}));
+// SPA fallback — any non-/api path returns index.html.
+app.get(/^\/(?!api\/).*/, (_req, res) => {
+    res.sendFile(path.join(DIST, 'index.html'));
+});
+// --------------------------------------------------------------------------
+// Daily broadcast cron — 00:00 Europe/Kyiv.
+// --------------------------------------------------------------------------
+cron.schedule('0 0 * * *', async () => {
+    const ids = allUserIds();
+    if (ids.length === 0)
+        return;
+    const dateId = kyivIsoDate();
+    const text = `🧮 Digits на ${dateId}\nСьогоднішня задача вже готова — нова ціль і нові числа.`;
+    console.log(`[cron] daily broadcast to ${ids.length} users`);
+    for (const id of ids) {
+        await sendMessage(id, text, { openAppButton: 'Грати' });
+    }
+}, { timezone: 'Europe/Kyiv' });
+app.listen(PORT, () => {
+    console.log(`[server] listening on :${PORT}, token=${BOT_TOKEN ? 'yes' : 'missing'}`);
+});

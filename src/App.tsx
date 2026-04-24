@@ -19,6 +19,7 @@ import {
   type DailyResult,
 } from './game/dailyResult';
 import { kyivIsoDate } from './lib/kyivDate';
+import { pushResult, registerUser } from './lib/api';
 
 export default function App() {
   // Manual reset hatch — wipes storage and reloads as a first-time player.
@@ -114,11 +115,15 @@ function GameApp() {
 
   // Pick up referral on first open. Runs every launch so an existing player
   // who taps a friend's link still gets the edge registered (idempotent).
+  // Also pings the backend with the current user + optional referrer so
+  // daily-push and friend-result notifications have someone to send to.
   useEffect(() => {
     const referrer = parseRefFromStartParam(getStartParam());
-    if (referrer === null) return;
     const me = getUserId();
-    registerFriendship(me, referrer).catch(() => void 0);
+    if (referrer !== null) {
+      registerFriendship(me, referrer).catch(() => void 0);
+    }
+    registerUser(referrer);
   }, []);
 
   const closeOnboarding = () => {
@@ -154,6 +159,7 @@ function GameApp() {
       finalState: game.state.puzzle,
     };
     saveDailyResult(result).catch(() => void 0);
+    pushResult(result);
     setTodayResult(result);
 
     // Streak increments only on an actual win (≥ 1 star).

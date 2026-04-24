@@ -5,20 +5,24 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "tsc -b && vite build && node -e \"require('fs').copyFileSync('serve.json','dist/serve.json')\"",
+    "build": "tsc -b && vite build && node -e \"require('fs').copyFileSync('serve.json','dist/serve.json')\" && npm run build:server",
+    "build:server": "tsc -p tsconfig.server.json",
     "preview": "vite preview --host",
-    "start": "serve -s dist",
+    "start": "node dist-server/index.js",
     "typecheck": "tsc -b --noEmit"
   },
   "dependencies": {
     "@telegram-apps/sdk-react": "^3.3.1",
+    "express": "^4.21.2",
     "motion": "^12.4.3",
+    "node-cron": "^3.0.3",
     "react": "^19.0.0",
-    "react-dom": "^19.0.0",
-    "serve": "^14.2.6"
+    "react-dom": "^19.0.0"
   },
   "devDependencies": {
+    "@types/express": "^5.0.0",
     "@types/node": "^25.6.0",
+    "@types/node-cron": "^3.0.11",
     "@types/react": "^19.0.8",
     "@types/react-dom": "^19.0.3",
     "@vitejs/plugin-react": "^4.3.4",
