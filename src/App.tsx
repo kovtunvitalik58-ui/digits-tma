@@ -200,7 +200,7 @@ export default function App() {
 
 // Bumped if the instructions change materially, so returning players see the
 // updated onboarding once.
-const ONBOARDED_KEY = 'onboarded:v1';
+const ONBOARDED_KEY = 'onboarded:v2';
 
 function TopBar({
   streak,
