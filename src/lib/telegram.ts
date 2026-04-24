@@ -181,4 +181,37 @@ export const storage = {
   async setJSON<T>(key: string, value: T): Promise<void> {
     await storage.set(key, JSON.stringify(value));
   },
+
+  /** Wipe every key the app has written to this user's storage. Used by the
+   *  `startapp=reset` debug entrypoint — a clean way to test first-open
+   *  flows without asking the player to reinstall anything. */
+  async clearAll(): Promise<void> {
+    Object.keys(localStorage)
+      .filter((k) => k.startsWith(LS_PREFIX))
+      .forEach((k) => localStorage.removeItem(k));
+    if (!cloudStorageSupported()) return;
+    await new Promise<void>((resolve) => {
+      const deadline = setTimeout(resolve, CLOUD_TIMEOUT_MS);
+      try {
+        tg()!.CloudStorage.getKeys((err, keys) => {
+          if (err || !keys || keys.length === 0) {
+            clearTimeout(deadline);
+            return resolve();
+          }
+          let pending = keys.length;
+          keys.forEach((k) =>
+            tg()!.CloudStorage.removeItem(k, () => {
+              if (--pending === 0) {
+                clearTimeout(deadline);
+                resolve();
+              }
+            }),
+          );
+        });
+      } catch {
+        clearTimeout(deadline);
+        resolve();
+      }
+    });
+  },
 };

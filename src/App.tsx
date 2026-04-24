@@ -16,6 +16,14 @@ import { loadDailyResult, saveDailyResult, type DailyResult } from './game/daily
 import { kyivIsoDate } from './lib/kyivDate';
 
 export default function App() {
+  // `startapp=reset` (Telegram) or `?reset=1` (plain browser) — testing hatch
+  // that wipes every stored value so onboarding, daily result, streak, etc.
+  // all come back as "first open". Runs before any hook reads storage.
+  if (typeof window !== 'undefined' && isResetRequested()) {
+    void resetAllState();
+    return null;
+  }
+
   const initialPuzzle = useMemo(() => todayPuzzle(), []);
   const game = useGame(initialPuzzle);
   const [stats, setStats] = useState<Stats | null>(null);
@@ -210,6 +218,26 @@ function readOnboardedFlagSync(): string | null {
   } catch {
     return null;
   }
+}
+
+function isResetRequested(): boolean {
+  if (getStartParam() === 'reset') return true;
+  try {
+    return new URL(window.location.href).searchParams.get('reset') === '1';
+  } catch {
+    return false;
+  }
+}
+
+async function resetAllState(): Promise<void> {
+  await storage.clearAll();
+  // Drop the trigger params from the URL so a second refresh doesn't wipe
+  // again after the player legitimately starts playing.
+  const url = new URL(window.location.href);
+  url.searchParams.delete('startapp');
+  url.searchParams.delete('tgWebAppStartParam');
+  url.searchParams.delete('reset');
+  window.location.replace(url.toString());
 }
 
 function TopBar({
