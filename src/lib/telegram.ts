@@ -95,10 +95,12 @@ export const haptic = {
 export async function shareResult(text: string, url?: string): Promise<'telegram' | 'web-share' | 'clipboard' | 'unsupported'> {
   const app = tg();
   if (app?.openTelegramLink) {
-    const qp = new URLSearchParams();
-    qp.set('url', url ?? '');
-    qp.set('text', text);
-    app.openTelegramLink(`https://t.me/share/url?${qp.toString()}`);
+    // URLSearchParams encodes spaces as `+`, which Telegram's share endpoint
+    // renders literally. encodeURIComponent keeps `%20` so the message reads
+    // as written.
+    const u = encodeURIComponent(url ?? '');
+    const t = encodeURIComponent(text);
+    app.openTelegramLink(`https://t.me/share/url?url=${u}&text=${t}`);
     return 'telegram';
   }
   if (typeof navigator !== 'undefined' && 'share' in navigator) {

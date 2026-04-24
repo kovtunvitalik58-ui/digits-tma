@@ -65,7 +65,7 @@ export function buildShareText({
   }
 
   // Normal case — got close but not exact.
-  const gap = distance === 0 ? '' : `  (${distance === 1 ? 'за 1' : `за ${distance}`})`;
+  const gap = distance === 0 ? '' : `  (±${distance})`;
   return [
     header,
     `ціль ${target} → ${closest}${gap} · ${movesLine}`,
