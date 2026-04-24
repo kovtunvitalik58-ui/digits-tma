@@ -21,15 +21,52 @@ import {
 import { kyivIsoDate } from './lib/kyivDate';
 
 export default function App() {
-  // `startapp=reset` (Telegram) or `?reset=1` (plain browser) — manual
-  // hatch that wipes storage and reloads as a first-time player. No
-  // auto-wipe: iOS Telegram WebView evicts localStorage between sessions,
-  // and a version-gated wipe would then cascade into clearing the
-  // player's CloudStorage-backed result every time it evicted.
+  // Manual reset hatch — wipes storage and reloads as a first-time player.
   if (typeof window !== 'undefined' && isResetRequested()) {
     void resetAllState();
     return null;
   }
+  return (
+    <AutoWipeGate>
+      <GameApp />
+    </AutoWipeGate>
+  );
+}
+
+// One-shot auto-wipe scoped to WIPE_GEN. The flag lives in CloudStorage
+// (not localStorage) so iOS Telegram WebView eviction can't retrigger the
+// wipe on every reopen. Bump `WIPE_GEN` to push a clean state to everyone.
+const WIPE_GEN = 'v1';
+const WIPE_FLAG_KEY = 'wipeGen';
+
+function AutoWipeGate({ children }: { children: React.ReactNode }) {
+  const [ready, setReady] = useState(false);
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const seen = await storage.get(WIPE_FLAG_KEY);
+        if (cancelled) return;
+        if (seen === WIPE_GEN) {
+          setReady(true);
+          return;
+        }
+        await storage.clearAll();
+        await storage.set(WIPE_FLAG_KEY, WIPE_GEN);
+        window.location.reload();
+      } catch {
+        if (!cancelled) setReady(true);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+  if (!ready) return null;
+  return <>{children}</>;
+}
+
+function GameApp() {
 
   const initialPuzzle = useMemo(() => todayPuzzle(), []);
   // Read the saved result synchronously so the first paint already shows the
