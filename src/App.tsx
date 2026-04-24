@@ -133,9 +133,18 @@ export default function App() {
     setLeaderboardOpen(true);
   };
 
+  const openOnboarding = () => {
+    haptic.tap();
+    setOnboardingOpen(true);
+  };
+
   return (
     <div className="h-dvh overflow-hidden flex flex-col safe-top">
-      <TopBar streak={stats?.streak ?? 0} onOpenLeaderboard={openLeaderboard} />
+      <TopBar
+        streak={stats?.streak ?? 0}
+        onOpenLeaderboard={openLeaderboard}
+        onOpenHelp={openOnboarding}
+      />
 
       <Header target={puzzleState.target} liveStars={game.liveStars} />
 
@@ -201,9 +210,11 @@ function readOnboardedFlagSync(): string | null {
 function TopBar({
   streak,
   onOpenLeaderboard,
+  onOpenHelp,
 }: {
   streak: number;
   onOpenLeaderboard: () => void;
+  onOpenHelp: () => void;
 }) {
   return (
     <div className="flex items-center justify-between px-4 h-11">
@@ -211,28 +222,50 @@ function TopBar({
         <span>🔥</span>
         <span className="tabular-nums text-text font-medium">{streak}</span>
       </div>
-      <button
-        onClick={onOpenLeaderboard}
-        aria-label="Лідерборд"
-        className="w-9 h-9 rounded-full flex items-center justify-center text-hint active:text-text active:bg-surface/60"
-      >
-        <svg
-          width="20"
-          height="20"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="2"
-          strokeLinecap="round"
-          strokeLinejoin="round"
+      <div className="flex items-center">
+        <button
+          onClick={onOpenHelp}
+          aria-label="Як грати"
+          className="w-9 h-9 rounded-full flex items-center justify-center text-hint active:text-text active:bg-surface/60"
         >
-          <path d="M6 9H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h2" />
-          <path d="M18 9h2a2 2 0 0 0 2-2V5a2 2 0 0 0-2-2h-2" />
-          <path d="M6 3h12v8a6 6 0 0 1-12 0z" />
-          <path d="M10 21h4" />
-          <path d="M12 17v4" />
-        </svg>
-      </button>
+          <svg
+            width="20"
+            height="20"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          >
+            <circle cx="12" cy="12" r="10" />
+            <path d="M9.1 9a3 3 0 0 1 5.82 1c0 2-3 3-3 3" />
+            <line x1="12" y1="17" x2="12.01" y2="17" />
+          </svg>
+        </button>
+        <button
+          onClick={onOpenLeaderboard}
+          aria-label="Лідерборд"
+          className="w-9 h-9 rounded-full flex items-center justify-center text-hint active:text-text active:bg-surface/60"
+        >
+          <svg
+            width="20"
+            height="20"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          >
+            <path d="M6 9H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h2" />
+            <path d="M18 9h2a2 2 0 0 0 2-2V5a2 2 0 0 0-2-2h-2" />
+            <path d="M6 3h12v8a6 6 0 0 1-12 0z" />
+            <path d="M10 21h4" />
+            <path d="M12 17v4" />
+          </svg>
+        </button>
+      </div>
     </div>
   );
 }
