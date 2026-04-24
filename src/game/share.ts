@@ -24,6 +24,25 @@ function movesWord(n: number): string {
   return 'ходів';
 }
 
+const MONTHS_GENITIVE = [
+  'січня', 'лютого', 'березня', 'квітня', 'травня', 'червня',
+  'липня', 'серпня', 'вересня', 'жовтня', 'листопада', 'грудня',
+];
+
+/** "2026-04-24" → "24 квітня". Falls back to the raw id if parsing fails. */
+function prettyDate(dateId: string): string {
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(dateId);
+  if (!match) return dateId;
+  const day = parseInt(match[3], 10);
+  const month = parseInt(match[2], 10) - 1;
+  const name = MONTHS_GENITIVE[month];
+  if (!name) return dateId;
+  return `${day} ${name}`;
+}
+
+/** Assemble the share text for a completed puzzle. Tone is casual and
+ *  slightly boastful on a win, self-deprecating on a miss — reads more
+ *  like a friend's message than a receipt. */
 export function buildShareText({
   target,
   stars,
@@ -32,16 +51,25 @@ export function buildShareText({
   opsUsed,
   dateId,
 }: ShareInput): string {
-  const lines = [
-    `Digits · ${dateId}`,
-    `🎯 ${target}  ${starLine(stars)}`,
-  ];
-  if (distance === 0) {
-    lines.push(`${opsUsed} ${movesWord(opsUsed)} · точне влучення!`);
-  } else if (closest !== null) {
-    lines.push(`${opsUsed} ${movesWord(opsUsed)} · ${closest} (за ${distance})`);
-  } else {
-    lines.push(`${opsUsed} ${movesWord(opsUsed)}`);
+  const header = `Digits · ${prettyDate(dateId)}  ${starLine(stars)}`;
+  const movesLine = `${opsUsed} ${movesWord(opsUsed)}`;
+
+  // Exact hit — lead with the celebration line, skip the "пройшло на N" line.
+  if (distance === 0 && stars === 3) {
+    return [header, `${target} = ${target} ✨  за ${movesLine}`, '', 'Спробуй сам:'].join('\n');
   }
-  return lines.join('\n');
+
+  // Missed entirely (board wiped before any viable card).
+  if (closest === null) {
+    return [header, `ціль ${target} · сьогодні повз`, '', 'Спробуй ти:'].join('\n');
+  }
+
+  // Normal case — got close but not exact.
+  const gap = distance === 0 ? '' : `  (${distance === 1 ? 'за 1' : `за ${distance}`})`;
+  return [
+    header,
+    `ціль ${target} → ${closest}${gap} · ${movesLine}`,
+    '',
+    'Спробуй сам:',
+  ].join('\n');
 }
