@@ -27,7 +27,7 @@ export function NumberCardView({ card, selected, frozen, preview, winning, onPic
     'transition-colors';
 
   const stateClass = selected
-    ? 'text-white glow-accent border border-white/25 bg-gradient-to-br from-indigo-400/80 to-violet-500/80'
+    ? 'text-white glow-accent border border-white/25 bg-accent-fill'
     : used
       ? 'glass text-hint'
       : winning
@@ -92,7 +92,7 @@ export function NumberCardView({ card, selected, frozen, preview, winning, onPic
                 ? 'bg-white/10 text-hint/80 backdrop-blur'
                 : winning
                   ? 'bg-amber-300 text-slate-900 shadow-[0_4px_14px_rgba(251,191,36,0.55)]'
-                  : 'bg-accent text-white shadow-[0_4px_14px_rgba(129,140,248,0.6)]')
+                  : 'bg-accent-fill text-white shadow-[0_4px_14px_rgba(45,212,191,0.55)]')
             }
             aria-hidden
           >

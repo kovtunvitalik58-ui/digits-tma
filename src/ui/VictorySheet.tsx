@@ -66,7 +66,7 @@ export function VictorySheet({
             <div className="mt-6 grid grid-cols-[1fr_auto] gap-2.5">
               <button
                 onClick={onShare}
-                className="relative overflow-hidden h-12 rounded-2xl bg-gradient-to-br from-indigo-400 to-violet-500 text-white font-semibold text-base glow-accent border border-white/25 active:brightness-110 flex items-center justify-center gap-2"
+                className="relative overflow-hidden h-12 rounded-2xl bg-accent-fill text-white font-semibold text-base glow-accent border border-white/25 active:brightness-110 flex items-center justify-center gap-2"
               >
                 <span aria-hidden className="absolute inset-x-0 top-0 h-1/2 rounded-t-2xl bg-gradient-to-b from-white/15 to-transparent pointer-events-none" />
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" className="relative z-10">

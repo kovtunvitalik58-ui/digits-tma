@@ -3,15 +3,16 @@
 @tailwind utilities;
 
 :root {
-  --tg-bg: #0a0d1f;
+  --tg-bg: #08101f;
   --tg-surface: rgba(255, 255, 255, 0.06);
   --tg-surface-strong: rgba(255, 255, 255, 0.1);
   --tg-border: rgba(255, 255, 255, 0.08);
   --tg-text: #f1f5f9;
   --tg-hint: #9aa3b9;
-  --tg-accent: #818cf8;
-  --tg-accent-strong: #6366f1;
-  --tg-violet: #a855f7;
+  --tg-accent: #2dd4bf;
+  --tg-accent-strong: #14b8a6;
+  --tg-accent-soft: rgba(45, 212, 191, 0.18);
+  --tg-star: #fbbf24;
 }
 
 html,
@@ -23,10 +24,12 @@ body,
 
 body {
   margin: 0;
+  /* Soft slate wash — no violet or indigo halos, the accent reads cleaner
+     without having to fight background bloom. A single faint top-left glow
+     gives depth without looking neon. */
   background:
-    radial-gradient(circle at 15% -10%, rgba(99, 102, 241, 0.25), transparent 50%),
-    radial-gradient(circle at 85% 110%, rgba(168, 85, 247, 0.18), transparent 55%),
-    linear-gradient(180deg, #0a0d1f 0%, #0d0f24 55%, #120f2a 100%);
+    radial-gradient(circle at 18% -8%, rgba(56, 189, 248, 0.08), transparent 55%),
+    linear-gradient(180deg, #08101f 0%, #0b1528 60%, #0d1730 100%);
   background-attachment: fixed;
   color: var(--tg-text);
   font-family: 'SF Pro Display', -apple-system, BlinkMacSystemFont, 'Inter', system-ui, sans-serif;
@@ -67,16 +70,22 @@ button {
       inset 0 1px 0 rgba(255, 255, 255, 0.08),
       0 10px 30px -12px rgba(0, 0, 0, 0.55);
   }
-  /* Glow halo behind accent elements (cards, buttons). */
+  /* Halo behind primary surfaces (selected card, primary CTA) — single
+     colour, no gradient, soft enough to avoid the neon look. */
   .glow-accent {
     box-shadow:
       inset 0 1px 0 rgba(255, 255, 255, 0.18),
-      0 8px 24px -4px rgba(129, 140, 248, 0.55),
-      0 2px 8px rgba(129, 140, 248, 0.25);
+      0 10px 28px -8px rgba(45, 212, 191, 0.45),
+      0 2px 6px rgba(45, 212, 191, 0.18);
   }
   .glow-amber {
     box-shadow:
       inset 0 1px 0 rgba(255, 255, 255, 0.2),
-      0 8px 24px -4px rgba(251, 191, 36, 0.45);
+      0 10px 28px -6px rgba(251, 191, 36, 0.45);
+  }
+  /* Flat accent fill — replaces the indigo→violet gradient everywhere
+     a primary action or selected state used to live. */
+  .bg-accent-fill {
+    background: linear-gradient(180deg, #34d9c6 0%, #2dd4bf 55%, #20b7a4 100%);
   }
 }

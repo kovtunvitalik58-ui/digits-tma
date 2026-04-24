@@ -23,7 +23,7 @@ export function OpButton({ op, selected, enabled, onPick }: Props) {
       className={
         'relative h-14 w-14 rounded-2xl flex items-center justify-center text-3xl font-semibold overflow-hidden ' +
         (selected
-          ? 'bg-gradient-to-br from-indigo-400 to-violet-500 text-white glow-accent border border-white/30'
+          ? 'bg-accent-fill text-white glow-accent border border-white/30'
           : 'glass glass-raise text-text')
       }
       aria-pressed={selected}

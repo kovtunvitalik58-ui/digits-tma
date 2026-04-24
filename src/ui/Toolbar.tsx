@@ -41,7 +41,7 @@ function ToolButton({
   const state = disabled
     ? 'glass text-hint/60 opacity-60'
     : accent
-      ? 'bg-gradient-to-br from-indigo-400 to-violet-500 text-white glow-accent border border-white/25 active:brightness-110'
+      ? 'bg-accent-fill text-white glow-accent border border-white/25 active:brightness-110'
       : 'glass glass-raise text-text active:brightness-110';
   return (
     <button

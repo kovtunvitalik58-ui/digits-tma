@@ -52,7 +52,7 @@ function TabSwitch({ value, onChange }: { value: Tab; onChange: (t: Tab) => void
   return (
     <div className="mx-6 mt-4 mb-3 p-1 rounded-full grid grid-cols-2 relative bg-black/30 border border-white/5">
       <motion.div
-        className="absolute top-1 bottom-1 w-[calc(50%-4px)] rounded-full bg-gradient-to-br from-indigo-400 to-violet-500 glow-accent"
+        className="absolute top-1 bottom-1 w-[calc(50%-4px)] rounded-full bg-accent-fill glow-accent"
         animate={{ x: value === 'today' ? 0 : 'calc(100% + 8px)' }}
         transition={{ type: 'spring', stiffness: 480, damping: 32 }}
       />
@@ -166,7 +166,7 @@ function RowList({ rows, tab }: { rows: Row[]; tab: Tab }) {
           className={
             'flex items-center gap-3 h-12 px-3 rounded-2xl ' +
             (r.isMe
-              ? 'bg-gradient-to-r from-indigo-500/25 to-violet-500/15 border border-indigo-400/40'
+              ? 'bg-[color:var(--tg-accent-soft)] border border-accent/50'
               : 'glass')
           }
         >
@@ -269,7 +269,7 @@ function Avatar({ name, photoUrl }: { name: string; photoUrl?: string }) {
   }
   const initial = name.charAt(0).toUpperCase() || '?';
   return (
-    <div className="w-8 h-8 rounded-full bg-gradient-to-br from-indigo-500/40 to-violet-500/40 ring-1 ring-white/10 flex items-center justify-center text-sm font-semibold text-text">
+    <div className="w-8 h-8 rounded-full bg-[color:var(--tg-accent-soft)] ring-1 ring-white/10 flex items-center justify-center text-sm font-semibold text-text">
       {initial}
     </div>
   );

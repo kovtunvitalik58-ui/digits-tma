@@ -34,7 +34,7 @@ export function OnboardingSheet({ open, target, onClose }: Props) {
             onClick={(e) => e.stopPropagation()}
             className="relative w-full max-w-sm glass-strong glass-raise rounded-[28px] shadow-pop overflow-hidden flex flex-col"
           >
-            <div className="relative h-56 bg-gradient-to-br from-indigo-500/15 via-violet-500/10 to-fuchsia-500/5 flex items-center justify-center overflow-hidden border-b border-white/5">
+            <div className="relative h-56 bg-[color:var(--tg-accent-soft)]/60 flex items-center justify-center overflow-hidden border-b border-white/5">
               <AnimatePresence mode="wait">
                 <motion.div
                   key={step}
@@ -93,7 +93,7 @@ export function OnboardingSheet({ open, target, onClose }: Props) {
                 )}
                 <button
                   onClick={() => (last ? onClose() : setStep(step + 1))}
-                  className="relative overflow-hidden flex-1 h-12 rounded-2xl bg-gradient-to-br from-indigo-400 to-violet-500 text-white font-semibold text-base glow-accent border border-white/25 active:brightness-110"
+                  className="relative overflow-hidden flex-1 h-12 rounded-2xl bg-accent-fill text-white font-semibold text-base glow-accent border border-white/25 active:brightness-110"
                 >
                   <span aria-hidden className="absolute inset-x-0 top-0 h-1/2 rounded-t-2xl bg-gradient-to-b from-white/15 to-transparent pointer-events-none" />
                   <span className="relative z-10">{last ? 'Грати' : 'Далі'}</span>
@@ -331,9 +331,9 @@ function DemoCard({
 }) {
   const bg =
     tone === 'result'
-      ? 'bg-gradient-to-br from-indigo-400/40 to-violet-500/40 border border-accent/60 glow-accent text-white'
+      ? 'bg-[color:var(--tg-accent-soft)] border border-accent/60 glow-accent text-white'
       : active
-        ? 'bg-gradient-to-br from-indigo-400 to-violet-500 border border-white/25 glow-accent text-white'
+        ? 'bg-accent-fill border border-white/25 glow-accent text-white'
         : 'glass glass-raise text-text';
   return (
     <motion.div
@@ -354,7 +354,7 @@ function DemoOp({ symbol, active }: { symbol: string; active: boolean }) {
       className={
         'w-10 h-10 rounded-xl flex items-center justify-center text-xl font-bold ' +
         (active
-          ? 'bg-gradient-to-br from-indigo-400 to-violet-500 text-white border border-white/25 glow-accent'
+          ? 'bg-accent-fill text-white border border-white/25 glow-accent'
           : 'glass text-hint')
       }
     >
