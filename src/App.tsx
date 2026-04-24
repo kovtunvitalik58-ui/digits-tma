@@ -73,7 +73,14 @@ function GameApp() {
   // finished board and the VictorySheet — no flash of a fresh puzzle while
   // the async CloudStorage read resolves. `saveDailyResult` mirrors into
   // localStorage, so the local copy is authoritative on this device.
-  const initialDaily = useMemo(() => loadDailyResultSync(kyivIsoDate()), []);
+  // If the saved result was produced against a different target (e.g. the
+  // generator formula changed mid-day), ignore it so the player doesn't end
+  // up with a stale board under a new target.
+  const initialDaily = useMemo(() => {
+    const r = loadDailyResultSync(kyivIsoDate());
+    if (!r || r.target !== initialPuzzle.target) return null;
+    return r;
+  }, [initialPuzzle.target]);
   const game = useGame(initialPuzzle, initialDaily?.finalState);
   const [stats, setStats] = useState<Stats | null>(null);
   const [victoryOpen, setVictoryOpen] = useState(!!initialDaily);
@@ -96,6 +103,7 @@ function GameApp() {
   useEffect(() => {
     loadDailyResult(kyivIsoDate()).then((r) => {
       if (!r) return;
+      if (r.target !== initialPuzzle.target) return;
       if (initialDaily && r.finishedAt <= initialDaily.finishedAt) return;
       setTodayResult(r);
       if (r.finalState) game.actions.restore(r.finalState);
