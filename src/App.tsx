@@ -51,18 +51,13 @@ export default function App() {
     registerFriendship(me, referrer).catch(() => void 0);
   }, []);
 
-  // First-open onboarding. Don't bother players who already finished today —
-  // their replay VictorySheet shouldn't be buried under instructions.
+  // First-open onboarding. Shown once per `ONBOARDED_KEY` version, regardless
+  // of whether today's puzzle is already finished — returning players who
+  // figured out the rules on their own still deserve a proper intro.
   useEffect(() => {
-    (async () => {
-      const seen = await storage.get(ONBOARDED_KEY);
-      if (seen) return;
-      if (await loadDailyResult(kyivIsoDate())) {
-        await storage.set(ONBOARDED_KEY, '1');
-        return;
-      }
-      setOnboardingOpen(true);
-    })();
+    storage.get(ONBOARDED_KEY).then((seen) => {
+      if (!seen) setOnboardingOpen(true);
+    });
   }, []);
 
   const closeOnboarding = () => {
