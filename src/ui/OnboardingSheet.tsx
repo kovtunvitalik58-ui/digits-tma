@@ -115,10 +115,10 @@ type Step = {
 function buildSteps(target: number): Step[] {
   return [
     {
-      title: 'Добери число до цілі',
+      title: 'Дійди до цілі',
       body: (
         <>
-          Щоденна головоломка: 6 карток і ціль —{' '}
+          З шести заданих чисел склади вираз, що дорівнює цілі —{' '}
           <span className="text-text font-semibold tabular-nums">{target}</span>.
         </>
       ),
