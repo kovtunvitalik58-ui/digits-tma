@@ -17,7 +17,7 @@ export function Header({ target, liveStars }: Props) {
         transition={{ type: 'spring', stiffness: 320, damping: 24 }}
         className="relative text-[64px] leading-none font-bold tabular-nums tracking-tight
                    bg-gradient-to-b from-white to-white/70 bg-clip-text text-transparent
-                   drop-shadow-[0_6px_20px_rgba(45,212,191,0.3)]"
+                   drop-shadow-[0_4px_16px_rgba(20,184,166,0.18)]"
       >
         {target}
       </motion.div>

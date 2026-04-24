@@ -92,7 +92,7 @@ export function NumberCardView({ card, selected, frozen, preview, winning, onPic
                 ? 'bg-white/10 text-hint/80 backdrop-blur'
                 : winning
                   ? 'bg-amber-300 text-slate-900 shadow-[0_4px_14px_rgba(251,191,36,0.55)]'
-                  : 'bg-accent-fill text-white shadow-[0_4px_14px_rgba(45,212,191,0.55)]')
+                  : 'bg-accent-fill text-white shadow-[0_4px_12px_rgba(20,184,166,0.35)]')
             }
             aria-hidden
           >
