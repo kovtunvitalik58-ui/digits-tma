@@ -47,22 +47,40 @@ export default function App() {
   );
   const [recordedFor, setRecordedFor] = useState<string | null>(null);
   const [todayResult, setTodayResult] = useState<DailyResult | null>(initialDaily);
+  // `hydrated` gates the visible board so a returning player whose
+  // localStorage got evicted (iOS Telegram WebView does this sometimes)
+  // doesn't see a fresh deal flash before CloudStorage resolves. If we
+  // already have the sync hit, we're hydrated immediately.
+  const [hydrated, setHydrated] = useState(!!initialDaily);
 
   // Load persisted stats once.
   useEffect(() => {
     loadStats().then(setStats);
   }, []);
 
-  // Cross-device sync: if CloudStorage on another device has a newer result
-  // than what localStorage showed synchronously, pick it up and restore.
+  // Hydrate today's result from CloudStorage. Runs even when localStorage
+  // already gave us a value — a newer copy from another device wins. If we
+  // started without a sync hit, a short deadline flips `hydrated` regardless
+  // so first-time players aren't stuck behind the fade-in.
   useEffect(() => {
+    let settled = false;
+    const deadline = setTimeout(() => {
+      if (settled) return;
+      settled = true;
+      setHydrated(true);
+    }, 400);
     loadDailyResult(kyivIsoDate()).then((r) => {
-      if (!r) return;
-      if (initialDaily && r.finishedAt <= initialDaily.finishedAt) return;
-      setTodayResult(r);
-      if (r.finalState) game.actions.restore(r.finalState);
-      setVictoryOpen(true);
+      if (r && (!initialDaily || r.finishedAt > initialDaily.finishedAt)) {
+        setTodayResult(r);
+        if (r.finalState) game.actions.restore(r.finalState);
+        setVictoryOpen(true);
+      }
+      if (settled) return;
+      settled = true;
+      clearTimeout(deadline);
+      setHydrated(true);
     });
+    return () => clearTimeout(deadline);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -169,23 +187,27 @@ export default function App() {
 
       <Header target={puzzleState.target} liveStars={game.liveStars} />
 
-      <GameBoard
-        cards={game.state.puzzle.cards}
-        selectedCardId={game.selectedCardId}
-        selectedOp={game.selectedOp}
-        previewResults={game.previewResults}
-        target={game.target}
-        playing={playing}
-        onPickCard={game.actions.pickCard}
-        onPickOp={game.actions.pickOp}
-      />
+      {hydrated && (
+        <>
+          <GameBoard
+            cards={game.state.puzzle.cards}
+            selectedCardId={game.selectedCardId}
+            selectedOp={game.selectedOp}
+            previewResults={game.previewResults}
+            target={game.target}
+            playing={playing}
+            onPickCard={game.actions.pickCard}
+            onPickOp={game.actions.pickOp}
+          />
 
-      <Toolbar
-        canUndo={game.state.puzzle.history.length > 0 && playing}
-        canFinish={playing && game.liveStars > 0}
-        onUndo={game.actions.undo}
-        onFinish={game.actions.finish}
-      />
+          <Toolbar
+            canUndo={game.state.puzzle.history.length > 0 && playing}
+            canFinish={playing && game.liveStars > 0}
+            onUndo={game.actions.undo}
+            onFinish={game.actions.finish}
+          />
+        </>
+      )}
 
       <Toast message={game.state.toast} onDone={game.actions.clearToast} />
 
