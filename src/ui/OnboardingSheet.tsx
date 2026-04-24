@@ -137,7 +137,7 @@ function buildSteps(target: number): Step[] {
     {
       title: 'Ближче до цілі — більше зірок',
       body: '3★ — точно в ціль, 2★ — у межах 10, 1★ — у межах 20.',
-      demo: <StarsDemo />,
+      demo: <StarsDemo target={target} />,
     },
   ];
 }
@@ -268,8 +268,9 @@ function ChainDemo() {
   );
 }
 
-function StarsDemo() {
-  // Show three scenarios animating in sequence.
+function StarsDemo({ target }: { target: number }) {
+  // Show three scenarios animating in sequence — anchored to the player's
+  // actual target so the example numbers match the step-1 card.
   const [phase, setPhase] = useState(0);
   useEffect(() => {
     const t = setTimeout(() => setPhase((p) => (p + 1) % 4), 900);
@@ -277,9 +278,9 @@ function StarsDemo() {
   }, [phase]);
 
   const rows = [
-    { label: '450', diff: '= 450', stars: 3 },
-    { label: '445', diff: '±5', stars: 2 },
-    { label: '438', diff: '±12', stars: 1 },
+    { label: `${target}`, diff: `= ${target}`, stars: 3 as const },
+    { label: `${target - 5}`, diff: '±5', stars: 2 as const },
+    { label: `${target - 12}`, diff: '±12', stars: 1 as const },
   ];
   return (
     <div className="flex flex-col gap-1.5">
