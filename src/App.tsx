@@ -7,7 +7,8 @@ import { Toolbar } from './ui/Toolbar';
 import { Toast } from './ui/Toast';
 import { VictorySheet } from './ui/VictorySheet';
 import { LeaderboardSheet } from './ui/LeaderboardSheet';
-import { getStartParam, getUserId, haptic, shareResult } from './lib/telegram';
+import { OnboardingSheet } from './ui/OnboardingSheet';
+import { getStartParam, getUserId, haptic, shareResult, storage } from './lib/telegram';
 import { loadStats, recordDailySolve, saveStats, type Stats } from './game/stats';
 import { buildShareText } from './game/share';
 import { buildReferralUrl, parseRefFromStartParam, registerFriendship } from './game/friends';
@@ -22,6 +23,7 @@ export default function App() {
   const [stats, setStats] = useState<Stats | null>(null);
   const [victoryOpen, setVictoryOpen] = useState(false);
   const [leaderboardOpen, setLeaderboardOpen] = useState(false);
+  const [onboardingOpen, setOnboardingOpen] = useState(false);
   const [recordedFor, setRecordedFor] = useState<string | null>(null);
   const [todayResult, setTodayResult] = useState<DailyResult | null>(null);
 
@@ -48,6 +50,25 @@ export default function App() {
     const me = getUserId();
     registerFriendship(me, referrer).catch(() => void 0);
   }, []);
+
+  // First-open onboarding. Don't bother players who already finished today —
+  // their replay VictorySheet shouldn't be buried under instructions.
+  useEffect(() => {
+    (async () => {
+      const seen = await storage.get(ONBOARDED_KEY);
+      if (seen) return;
+      if (await loadDailyResult(kyivIsoDate())) {
+        await storage.set(ONBOARDED_KEY, '1');
+        return;
+      }
+      setOnboardingOpen(true);
+    })();
+  }, []);
+
+  const closeOnboarding = () => {
+    setOnboardingOpen(false);
+    storage.set(ONBOARDED_KEY, '1').catch(() => void 0);
+  };
 
   // React to game-ending: haptics, show result sheet, persist result, bump streak.
   const { status, puzzle: puzzleState } = game.state.puzzle;
@@ -172,9 +193,19 @@ export default function App() {
         open={leaderboardOpen}
         onClose={() => setLeaderboardOpen(false)}
       />
+
+      <OnboardingSheet
+        open={onboardingOpen}
+        target={puzzleState.target}
+        onClose={closeOnboarding}
+      />
     </div>
   );
 }
+
+// Bumped if the instructions change materially, so returning players see the
+// updated onboarding once.
+const ONBOARDED_KEY = 'onboarded:v1';
 
 function TopBar({
   streak,
