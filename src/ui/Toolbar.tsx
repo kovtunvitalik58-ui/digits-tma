@@ -1,17 +1,15 @@
 type Props = {
   canUndo: boolean;
   canFinish: boolean;
-  undosLeft: number;
   onUndo: () => void;
   onFinish: () => void;
 };
 
-export function Toolbar({ canUndo, canFinish, undosLeft, onUndo, onFinish }: Props) {
+export function Toolbar({ canUndo, canFinish, onUndo, onFinish }: Props) {
   return (
     <div className="flex items-center justify-center gap-2 pt-2 pb-4">
       <ToolButton
         label="Відмінити"
-        badge={String(undosLeft)}
         disabled={!canUndo}
         onClick={onUndo}
       >
@@ -31,14 +29,12 @@ export function Toolbar({ canUndo, canFinish, undosLeft, onUndo, onFinish }: Pro
 
 function ToolButton({
   label,
-  badge,
   disabled,
   accent,
   onClick,
   children,
 }: {
   label: string;
-  badge?: string;
   disabled?: boolean;
   accent?: boolean;
   onClick: () => void;
@@ -48,7 +44,7 @@ function ToolButton({
     <button
       onClick={onClick}
       disabled={disabled}
-      aria-label={badge ? `${label} (${badge} лишилось)` : label}
+      aria-label={label}
       className={
         'flex items-center gap-1.5 h-9 px-3 rounded-full text-sm ' +
         (disabled
@@ -60,9 +56,6 @@ function ToolButton({
     >
       {children}
       <span>{label}</span>
-      {badge !== undefined && (
-        <span className="ml-0.5 text-xs tabular-nums opacity-60">{badge}</span>
-      )}
     </button>
   );
 }

@@ -12,14 +12,12 @@ import { getStartParam, getUserId, haptic, shareResult, storage } from './lib/te
 import { loadStats, recordDailySolve, saveStats, type Stats } from './game/stats';
 import { buildShareText } from './game/share';
 import { buildReferralUrl, parseRefFromStartParam, registerFriendship } from './game/friends';
-import { useUndoLimit } from './game/useUndoLimit';
 import { loadDailyResult, saveDailyResult, type DailyResult } from './game/dailyResult';
 import { kyivIsoDate } from './lib/kyivDate';
 
 export default function App() {
   const initialPuzzle = useMemo(() => todayPuzzle(), []);
   const game = useGame(initialPuzzle);
-  const undoLimit = useUndoLimit();
   const [stats, setStats] = useState<Stats | null>(null);
   const [victoryOpen, setVictoryOpen] = useState(false);
   const [leaderboardOpen, setLeaderboardOpen] = useState(false);
@@ -135,12 +133,6 @@ export default function App() {
     setLeaderboardOpen(true);
   };
 
-  const onUndo = async () => {
-    const allowed = await undoLimit.consume();
-    if (!allowed) return;
-    game.actions.undo();
-  };
-
   return (
     <div className="h-dvh overflow-hidden flex flex-col safe-top">
       <TopBar streak={stats?.streak ?? 0} onOpenLeaderboard={openLeaderboard} />
@@ -159,12 +151,9 @@ export default function App() {
       />
 
       <Toolbar
-        canUndo={
-          game.state.puzzle.history.length > 0 && playing && undoLimit.remaining > 0
-        }
+        canUndo={game.state.puzzle.history.length > 0 && playing}
         canFinish={playing && game.liveStars > 0}
-        undosLeft={undoLimit.remaining}
-        onUndo={onUndo}
+        onUndo={game.actions.undo}
         onFinish={game.actions.finish}
       />
 
