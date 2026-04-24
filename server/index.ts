@@ -177,10 +177,12 @@ app.get(/^\/(?!api\/).*/, (_req, res) => {
 });
 
 // --------------------------------------------------------------------------
-// Daily broadcast cron — 00:00 Europe/Kyiv.
+// Daily broadcast cron — 09:30 Europe/Kyiv. Morning "coffee + puzzle" slot
+// lands after the commute crush but before the workday fully ramps, which
+// matches the engagement window observed on NYT-style daily puzzles.
 // --------------------------------------------------------------------------
 cron.schedule(
-  '0 0 * * *',
+  '30 9 * * *',
   async () => {
     const ids = allUserIds();
     if (ids.length === 0) return;
