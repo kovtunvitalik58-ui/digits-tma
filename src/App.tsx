@@ -16,10 +16,13 @@ import { loadDailyResult, saveDailyResult, type DailyResult } from './game/daily
 import { kyivIsoDate } from './lib/kyivDate';
 
 export default function App() {
-  // `startapp=reset` (Telegram) or `?reset=1` (plain browser) — testing hatch
-  // that wipes every stored value so onboarding, daily result, streak, etc.
-  // all come back as "first open". Runs before any hook reads storage.
-  if (typeof window !== 'undefined' && isResetRequested()) {
+  // One-time wipe on boot if the stored data version is behind the build's
+  // version — a controlled way to force a "new player" experience after
+  // shipping a change that depends on a clean storage. Bump `DATA_VERSION`
+  // whenever you need to reset all players' local state.
+  // Also honours `startapp=reset` (Telegram) / `?reset=1` (plain browser)
+  // as an on-demand hatch.
+  if (typeof window !== 'undefined' && shouldResetOnBoot()) {
     void resetAllState();
     return null;
   }
@@ -220,6 +223,23 @@ function readOnboardedFlagSync(): string | null {
   }
 }
 
+// Bump to force every player through a "fresh install" on their next open —
+// wipes CloudStorage + localStorage and reloads. The version stamp itself is
+// stored OUTSIDE of the app's `digits:` prefix so clearAll can't remove it,
+// and keeps this single-shot instead of looping forever.
+const DATA_VERSION = 1;
+const DATA_VERSION_KEY = 'digits-data-version';
+
+function shouldResetOnBoot(): boolean {
+  if (isResetRequested()) return true;
+  try {
+    const seen = Number(localStorage.getItem(DATA_VERSION_KEY) || '0');
+    return seen < DATA_VERSION;
+  } catch {
+    return false;
+  }
+}
+
 function isResetRequested(): boolean {
   if (getStartParam() === 'reset') return true;
   try {
@@ -231,6 +251,11 @@ function isResetRequested(): boolean {
 
 async function resetAllState(): Promise<void> {
   await storage.clearAll();
+  try {
+    localStorage.setItem(DATA_VERSION_KEY, String(DATA_VERSION));
+  } catch {
+    // Storage full / disabled — nothing to do, the version just won't stick.
+  }
   // Drop the trigger params from the URL so a second refresh doesn't wipe
   // again after the player legitimately starts playing.
   const url = new URL(window.location.href);
