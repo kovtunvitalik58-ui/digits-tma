@@ -197,7 +197,7 @@ export default function App() {
 
 // Bumped if the instructions change materially, so returning players see the
 // updated onboarding once.
-const ONBOARDED_KEY = 'onboarded:v3';
+const ONBOARDED_KEY = 'onboarded:v4';
 
 // Must match the LS_PREFIX in src/lib/telegram.ts — `storage.set` mirrors all
 // writes there, so reading it directly is a valid synchronous shortcut.
