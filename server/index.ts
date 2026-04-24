@@ -7,6 +7,7 @@ import {
   addFriendship,
   allUserIds,
   friendsOf,
+  load as loadDB,
   putResult,
   resultsOn,
   touchUser,
@@ -55,7 +56,10 @@ function authed(body: unknown): ReturnType<typeof validateInitData> {
 
 app.post('/api/register', (req, res) => {
   const user = authed(req.body);
-  if (!user) return res.status(401).json({ ok: false });
+  if (!user) {
+    console.log('[register] 401 — bad initData');
+    return res.status(401).json({ ok: false });
+  }
   touchUser(user.id, {
     firstName: user.first_name,
     username: user.username,
@@ -65,12 +69,16 @@ app.post('/api/register', (req, res) => {
   // `start_param` in the body if it looked like a `ref_<id>`.
   const body = req.body as { referrer?: unknown };
   const referrer = Number(body.referrer);
+  let linked = false;
   if (Number.isFinite(referrer) && referrer > 0 && referrer !== user.id) {
     addFriendship(user.id, referrer);
+    linked = true;
   }
-  // Return the up-to-date friend id list so the inviter's client can
-  // cache it — otherwise only the invitee ever sees the edge locally.
-  return res.json({ ok: true, friends: friendsOf(user.id) });
+  const friends = friendsOf(user.id);
+  console.log(
+    `[register] user=${user.id} ref=${body.referrer ?? '-'} linked=${linked} friends=${friends.length}`,
+  );
+  return res.json({ ok: true, friends });
 });
 
 app.post('/api/result', async (req, res) => {
@@ -141,6 +149,24 @@ app.post('/api/result', async (req, res) => {
   );
 
   return res.json({ ok: true, notified: notifyCandidates.length });
+});
+
+/** Token-gated debug dump — used for operational sanity checks. The caller
+ *  has to know the bot token so only the operator can see it. */
+app.get('/api/debug/stats', (req, res) => {
+  if (!BOT_TOKEN || req.query.token !== BOT_TOKEN) {
+    return res.status(401).json({ ok: false });
+  }
+  const db = loadDB();
+  return res.json({
+    users: Object.keys(db.users).length,
+    friendEdges: Object.fromEntries(
+      Object.entries(db.friends).map(([k, v]) => [k, v.length]),
+    ),
+    resultsByDay: Object.fromEntries(
+      Object.entries(db.results).map(([d, day]) => [d, Object.keys(day).length]),
+    ),
+  });
 });
 
 // Static files — bundle + serve.json headers.
