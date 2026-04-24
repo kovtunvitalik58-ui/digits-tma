@@ -254,6 +254,7 @@ function GameApp() {
       <LeaderboardSheet
         open={leaderboardOpen}
         onClose={() => setLeaderboardOpen(false)}
+        onShare={onShare}
       />
 
       <OnboardingSheet
