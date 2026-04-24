@@ -26,3 +26,17 @@ export async function saveDailyResult(r: DailyResult): Promise<void> {
 export async function loadDailyResult(dateId: string): Promise<DailyResult | null> {
   return storage.getJSON<DailyResult>(`${KEY_PREFIX}${dateId}`);
 }
+
+/** Synchronous read used during the very first render so the restored board
+ *  paints in the same frame as the rest of the UI. `saveDailyResult` mirrors
+ *  every write into localStorage (via `storage.set`), so the local copy is
+ *  authoritative on the device that produced the result. */
+export function loadDailyResultSync(dateId: string): DailyResult | null {
+  try {
+    const raw = localStorage.getItem('digits:' + KEY_PREFIX + dateId);
+    if (!raw) return null;
+    return JSON.parse(raw) as DailyResult;
+  } catch {
+    return null;
+  }
+}

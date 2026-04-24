@@ -12,7 +12,12 @@ import { getStartParam, getUserId, haptic, shareResult, storage } from './lib/te
 import { loadStats, recordDailySolve, saveStats, type Stats } from './game/stats';
 import { buildShareText } from './game/share';
 import { buildReferralUrl, parseRefFromStartParam, registerFriendship } from './game/friends';
-import { loadDailyResult, saveDailyResult, type DailyResult } from './game/dailyResult';
+import {
+  loadDailyResult,
+  loadDailyResultSync,
+  saveDailyResult,
+  type DailyResult,
+} from './game/dailyResult';
 import { kyivIsoDate } from './lib/kyivDate';
 
 export default function App() {
@@ -28,32 +33,32 @@ export default function App() {
   }
 
   const initialPuzzle = useMemo(() => todayPuzzle(), []);
-  const game = useGame(initialPuzzle);
+  // Read the saved result synchronously so the first paint already shows the
+  // finished board and the VictorySheet — no flash of a fresh puzzle while
+  // the async CloudStorage read resolves. `saveDailyResult` mirrors into
+  // localStorage, so the local copy is authoritative on this device.
+  const initialDaily = useMemo(() => loadDailyResultSync(kyivIsoDate()), []);
+  const game = useGame(initialPuzzle, initialDaily?.finalState);
   const [stats, setStats] = useState<Stats | null>(null);
-  const [victoryOpen, setVictoryOpen] = useState(false);
+  const [victoryOpen, setVictoryOpen] = useState(!!initialDaily);
   const [leaderboardOpen, setLeaderboardOpen] = useState(false);
-  // Read the flag synchronously on mount so the wizard paints on the very
-  // first frame — an async CloudStorage round-trip would otherwise leave a
-  // visible gap where the empty board flashes before the modal appears.
-  // `storage.set` mirrors to localStorage, so it's authoritative here.
   const [onboardingOpen, setOnboardingOpen] = useState(
     () => !readOnboardedFlagSync(),
   );
   const [recordedFor, setRecordedFor] = useState<string | null>(null);
-  const [todayResult, setTodayResult] = useState<DailyResult | null>(null);
+  const [todayResult, setTodayResult] = useState<DailyResult | null>(initialDaily);
 
   // Load persisted stats once.
   useEffect(() => {
     loadStats().then(setStats);
   }, []);
 
-  // If today's puzzle was already finished, surface the saved result so
-  // reopening the app doesn't make the player restart or lose their score.
-  // Also restore the final board state so the player sees what they left
-  // behind — not a fresh puzzle underneath the victory sheet.
+  // Cross-device sync: if CloudStorage on another device has a newer result
+  // than what localStorage showed synchronously, pick it up and restore.
   useEffect(() => {
     loadDailyResult(kyivIsoDate()).then((r) => {
       if (!r) return;
+      if (initialDaily && r.finishedAt <= initialDaily.finishedAt) return;
       setTodayResult(r);
       if (r.finalState) game.actions.restore(r.finalState);
       setVictoryOpen(true);

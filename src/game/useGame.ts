@@ -98,8 +98,15 @@ function reducer(state: UIState, action: Action): UIState {
   }
 }
 
-export function useGame(puzzle: Puzzle) {
-  const [state, dispatch] = useReducer(reducer, puzzle, initialize);
+export function useGame(puzzle: Puzzle, initialPuzzleState?: PuzzleState) {
+  const [state, dispatch] = useReducer(
+    reducer,
+    undefined,
+    () =>
+      initialPuzzleState
+        ? { puzzle: initialPuzzleState, selection: { phase: 'idle' }, toast: null }
+        : initialize(puzzle),
+  );
 
   const pickCard = useCallback((id: string) => {
     haptic.pick();
