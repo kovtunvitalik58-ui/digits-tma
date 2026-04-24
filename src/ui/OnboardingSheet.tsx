@@ -118,7 +118,7 @@ function buildSteps(target: number): Step[] {
       title: 'Дійди до цілі',
       body: (
         <>
-          З шести заданих чисел склади вираз, що дорівнює цілі —{' '}
+          Комбінуй шість чисел діями, поки не отримаєш ціль —{' '}
           <span className="text-text font-semibold tabular-nums">{target}</span>.
         </>
       ),
