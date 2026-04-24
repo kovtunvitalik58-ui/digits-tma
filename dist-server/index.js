@@ -57,7 +57,9 @@ app.post('/api/register', (req, res) => {
     if (Number.isFinite(referrer) && referrer > 0 && referrer !== user.id) {
         addFriendship(user.id, referrer);
     }
-    return res.json({ ok: true });
+    // Return the up-to-date friend id list so the inviter's client can
+    // cache it — otherwise only the invitee ever sees the edge locally.
+    return res.json({ ok: true, friends: friendsOf(user.id) });
 });
 app.post('/api/result', async (req, res) => {
     const user = authed(req.body);
@@ -139,9 +141,11 @@ app.get(/^\/(?!api\/).*/, (_req, res) => {
     res.sendFile(path.join(DIST, 'index.html'));
 });
 // --------------------------------------------------------------------------
-// Daily broadcast cron — 00:00 Europe/Kyiv.
+// Daily broadcast cron — 09:30 Europe/Kyiv. Morning "coffee + puzzle" slot
+// lands after the commute crush but before the workday fully ramps, which
+// matches the engagement window observed on NYT-style daily puzzles.
 // --------------------------------------------------------------------------
-cron.schedule('0 0 * * *', async () => {
+cron.schedule('30 9 * * *', async () => {
     const ids = allUserIds();
     if (ids.length === 0)
         return;

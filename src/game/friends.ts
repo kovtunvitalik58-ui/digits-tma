@@ -78,6 +78,24 @@ export async function getFriendIds(): Promise<number[]> {
   return (await loadFriends()).ids;
 }
 
+/** Merge a server-provided list of friend ids into the local cache. The
+ *  backend knows about bidirectional edges that the local store doesn't —
+ *  e.g. the inviter wouldn't otherwise see the invitee. Idempotent. */
+export async function mergeFriendIds(ids: number[]): Promise<void> {
+  if (ids.length === 0) return;
+  const blob = await loadFriends();
+  const set = new Set(blob.ids);
+  let changed = false;
+  for (const id of ids) {
+    if (!set.has(id)) {
+      set.add(id);
+      changed = true;
+    }
+  }
+  if (!changed) return;
+  await saveFriends({ ...blob, ids: [...set] });
+}
+
 export async function getLastReferrer(): Promise<number | null> {
   return (await loadFriends()).lastReferrer ?? null;
 }
