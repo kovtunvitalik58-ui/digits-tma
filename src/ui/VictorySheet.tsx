@@ -99,7 +99,7 @@ function title(stars: Stars): string {
     case 1:
       return 'Непогано';
     default:
-      return 'Спробуй ще раз';
+      return 'Завтра буде краще';
   }
 }
 
