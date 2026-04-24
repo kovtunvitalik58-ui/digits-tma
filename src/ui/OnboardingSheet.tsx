@@ -278,8 +278,8 @@ function StarsDemo() {
 
   const rows = [
     { label: '450', diff: '= 450', stars: 3 },
-    { label: '445', diff: 'за 5', stars: 2 },
-    { label: '438', diff: 'за 12', stars: 1 },
+    { label: '445', diff: '±5', stars: 2 },
+    { label: '438', diff: '±12', stars: 1 },
   ];
   return (
     <div className="flex flex-col gap-1.5">
