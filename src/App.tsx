@@ -23,7 +23,13 @@ export default function App() {
   const [stats, setStats] = useState<Stats | null>(null);
   const [victoryOpen, setVictoryOpen] = useState(false);
   const [leaderboardOpen, setLeaderboardOpen] = useState(false);
-  const [onboardingOpen, setOnboardingOpen] = useState(false);
+  // Read the flag synchronously on mount so the wizard paints on the very
+  // first frame — an async CloudStorage round-trip would otherwise leave a
+  // visible gap where the empty board flashes before the modal appears.
+  // `storage.set` mirrors to localStorage, so it's authoritative here.
+  const [onboardingOpen, setOnboardingOpen] = useState(
+    () => !readOnboardedFlagSync(),
+  );
   const [recordedFor, setRecordedFor] = useState<string | null>(null);
   const [todayResult, setTodayResult] = useState<DailyResult | null>(null);
 
@@ -49,15 +55,6 @@ export default function App() {
     if (referrer === null) return;
     const me = getUserId();
     registerFriendship(me, referrer).catch(() => void 0);
-  }, []);
-
-  // First-open onboarding. Shown once per `ONBOARDED_KEY` version, regardless
-  // of whether today's puzzle is already finished — returning players who
-  // figured out the rules on their own still deserve a proper intro.
-  useEffect(() => {
-    storage.get(ONBOARDED_KEY).then((seen) => {
-      if (!seen) setOnboardingOpen(true);
-    });
   }, []);
 
   const closeOnboarding = () => {
@@ -201,6 +198,16 @@ export default function App() {
 // Bumped if the instructions change materially, so returning players see the
 // updated onboarding once.
 const ONBOARDED_KEY = 'onboarded:v2';
+
+// Must match the LS_PREFIX in src/lib/telegram.ts — `storage.set` mirrors all
+// writes there, so reading it directly is a valid synchronous shortcut.
+function readOnboardedFlagSync(): string | null {
+  try {
+    return localStorage.getItem('digits:' + ONBOARDED_KEY);
+  } catch {
+    return null;
+  }
+}
 
 function TopBar({
   streak,
