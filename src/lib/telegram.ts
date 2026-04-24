@@ -125,10 +125,16 @@ function cloudStorageSupported(): boolean {
   return !!tg()?.CloudStorage && versionAtLeast([6, 9]);
 }
 
+// Some Telegram clients (seen on iOS) accept a CloudStorage call but never
+// invoke the callback. Without a deadline the calling promise would hang
+// forever and any `await storage.get(...)` would block its caller — which
+// used to manifest as an empty, frozen leaderboard.
+const CLOUD_TIMEOUT_MS = 1500;
+
 export const storage = {
   async get(key: string): Promise<string | null> {
     if (cloudStorageSupported()) {
-      return new Promise((resolve) => {
+      const cloud = new Promise<string | null>((resolve) => {
         try {
           tg()!.CloudStorage.getItem(key, (err, value) => {
             if (err) resolve(null);
@@ -138,22 +144,28 @@ export const storage = {
           resolve(localStorage.getItem(LS_PREFIX + key));
         }
       });
+      const deadline = new Promise<string | null>((resolve) =>
+        setTimeout(() => resolve(localStorage.getItem(LS_PREFIX + key)), CLOUD_TIMEOUT_MS),
+      );
+      return Promise.race([cloud, deadline]);
     }
     return localStorage.getItem(LS_PREFIX + key);
   },
 
   async set(key: string, value: string): Promise<void> {
+    // Always mirror into localStorage so a later `get` has a fallback even
+    // if CloudStorage silently drops the write.
+    localStorage.setItem(LS_PREFIX + key, value);
     if (cloudStorageSupported()) {
       return new Promise((resolve) => {
         try {
           tg()!.CloudStorage.setItem(key, value, () => resolve());
+          setTimeout(resolve, CLOUD_TIMEOUT_MS);
         } catch {
-          localStorage.setItem(LS_PREFIX + key, value);
           resolve();
         }
       });
     }
-    localStorage.setItem(LS_PREFIX + key, value);
   },
 
   async getJSON<T>(key: string): Promise<T | null> {

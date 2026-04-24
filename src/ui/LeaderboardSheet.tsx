@@ -82,49 +82,49 @@ type Row = {
 };
 
 function FriendsList() {
-  const [rows, setRows] = useState<Row[] | null>(null);
+  // Render the "me" row synchronously so the leaderboard is never blank —
+  // even if storage reads are slow or hang on a particular Telegram client.
+  // Friend rows and today's stars stream in once async reads resolve.
+  const me = getUser();
+  const meRowInitial: Row = {
+    id: me ? `u${me.id}` : 'me',
+    rank: 1,
+    name: getUserDisplayName(),
+    photoUrl: me?.photo_url,
+    isMe: true,
+  };
+  const [rows, setRows] = useState<Row[]>([meRowInitial]);
 
   useEffect(() => {
     let cancelled = false;
     (async () => {
       // TODO: replace with `fetch('/api/leaderboard/friends')` once backend is up.
-      // For now: show the current user (with local daily result) +
-      // locally-registered friends as placeholders.
-      const me = getUser();
       const [friendIds, myToday] = await Promise.all([
         getFriendIds(),
         loadDailyResult(kyivIsoDate()),
       ]);
       if (cancelled) return;
-      const rows: Row[] = [];
-      // Always include the "me" row. Fall back to placeholder identity so the
-      // player always sees their own result, even if Telegram hasn't provided
-      // initDataUnsafe.user (e.g. opened in a plain browser for testing).
-      rows.push({
-        id: me ? `u${me.id}` : 'me',
-        rank: 1,
-        name: getUserDisplayName(),
-        photoUrl: me?.photo_url,
-        stars: myToday?.stars,
-        opsUsed: myToday?.opsUsed,
-        isMe: true,
-      });
+      const next: Row[] = [
+        {
+          ...meRowInitial,
+          stars: myToday?.stars,
+          opsUsed: myToday?.opsUsed,
+        },
+      ];
       friendIds.forEach((fid) => {
-        rows.push({
+        next.push({
           id: `u${fid}`,
-          rank: rows.length + 1,
+          rank: next.length + 1,
           name: `Друг #${String(fid).slice(-4)}`,
         });
       });
-      setRows(rows);
+      setRows(next);
     })();
     return () => {
       cancelled = true;
     };
   }, []);
 
-  if (rows === null) return <SkeletonRows />;
-  if (rows.length === 0) return <EmptyFriends />;
   if (rows.length === 1) {
     return (
       <>
@@ -232,25 +232,6 @@ function Avatar({ name, photoUrl }: { name: string; photoUrl?: string }) {
     <div className="w-8 h-8 rounded-full bg-bg/80 ring-1 ring-white/5 flex items-center justify-center text-sm font-semibold text-hint">
       {initial}
     </div>
-  );
-}
-
-function SkeletonRows() {
-  return (
-    <ul className="flex flex-col gap-1 pt-2">
-      {Array.from({ length: 5 }).map((_, i) => (
-        <li key={i} className="h-12 rounded-xl bg-bg/30 animate-pulse" />
-      ))}
-    </ul>
-  );
-}
-
-function EmptyFriends() {
-  return (
-    <EmptyState
-      title="Поки що сам"
-      body="Поділися результатом — друзі що долучаться через твоє посилання з'являться тут."
-    />
   );
 }
 
