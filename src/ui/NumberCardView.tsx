@@ -24,7 +24,7 @@ export function NumberCardView({ card, selected, frozen, preview, winning, onPic
   const base =
     'relative w-full h-full rounded-3xl flex items-center justify-center ' +
     'text-[clamp(1rem,6cqmin,1.75rem)] font-semibold tabular-nums select-none ' +
-    'transition-colors overflow-hidden';
+    'transition-colors';
 
   const stateClass = selected
     ? 'text-white glow-accent border border-white/25 bg-gradient-to-br from-indigo-400/80 to-violet-500/80'
