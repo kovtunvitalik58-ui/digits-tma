@@ -131,11 +131,13 @@ export function generatePuzzle({
   };
 }
 
-/** Difficulty curve by weekday — NYT pattern: Mon easy → Sat hard.
+/** Difficulty curve by weekday — gentle NYT-style ramp: Sun-Mon easy,
+ *  Tue through Sat stay at 4 ops. Previously peaked at 5, which meant the
+ *  player had to use five of six cards and often ran out of viable paths.
  *  Weekday is resolved in Europe/Kyiv so every player rolls over together. */
 export function difficultyFor(date: Date = new Date()): number {
   const day = kyivDayOfWeek(date); // 0 Sun .. 6 Sat, in Kyiv
-  return [3, 3, 3, 4, 4, 5, 5][day];
+  return [3, 3, 4, 4, 4, 4, 4][day];
 }
 
 /** The daily puzzle for "today in Kyiv". Deterministic per Kyiv-date, so the
