@@ -36,7 +36,7 @@ export default function App() {
 // One-shot auto-wipe scoped to WIPE_GEN. The flag lives in CloudStorage
 // (not localStorage) so iOS Telegram WebView eviction can't retrigger the
 // wipe on every reopen. Bump `WIPE_GEN` to push a clean state to everyone.
-const WIPE_GEN = 'v1';
+const WIPE_GEN = 'v2';
 const WIPE_FLAG_KEY = 'wipeGen';
 
 function AutoWipeGate({ children }: { children: React.ReactNode }) {
