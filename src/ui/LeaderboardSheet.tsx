@@ -2,7 +2,7 @@ import { AnimatePresence, motion } from 'motion/react';
 import { useEffect, useState } from 'react';
 import { getFriendIds } from '../game/friends';
 import { getUser, getUserDisplayName } from '../lib/telegram';
-import { loadDailyResult } from '../game/dailyResult';
+import { loadDailyResult, loadDailyResultSync } from '../game/dailyResult';
 import { kyivIsoDate } from '../lib/kyivDate';
 import type { Stars } from '../game/types';
 
@@ -84,13 +84,19 @@ type Row = {
 function FriendsList() {
   // Render the "me" row synchronously so the leaderboard is never blank —
   // even if storage reads are slow or hang on a particular Telegram client.
-  // Friend rows and today's stars stream in once async reads resolve.
+  // Today's stars come from the localStorage-backed sync read so the row
+  // lands with the correct score in the same frame the sheet opens;
+  // CloudStorage fills in friends and any newer cross-device result after.
   const me = getUser();
+  const today = kyivIsoDate();
+  const myTodaySync = loadDailyResultSync(today);
   const meRowInitial: Row = {
     id: me ? `u${me.id}` : 'me',
     rank: 1,
     name: getUserDisplayName(),
     photoUrl: me?.photo_url,
+    stars: myTodaySync?.stars,
+    opsUsed: myTodaySync?.opsUsed,
     isMe: true,
   };
   const [rows, setRows] = useState<Row[]>([meRowInitial]);
@@ -101,14 +107,14 @@ function FriendsList() {
       // TODO: replace with `fetch('/api/leaderboard/friends')` once backend is up.
       const [friendIds, myToday] = await Promise.all([
         getFriendIds(),
-        loadDailyResult(kyivIsoDate()),
+        loadDailyResult(today),
       ]);
       if (cancelled) return;
       const next: Row[] = [
         {
           ...meRowInitial,
-          stars: myToday?.stars,
-          opsUsed: myToday?.opsUsed,
+          stars: myToday?.stars ?? meRowInitial.stars,
+          opsUsed: myToday?.opsUsed ?? meRowInitial.opsUsed,
         },
       ];
       friendIds.forEach((fid) => {
@@ -123,6 +129,7 @@ function FriendsList() {
     return () => {
       cancelled = true;
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   if (rows.length === 1) {
