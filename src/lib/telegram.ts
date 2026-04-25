@@ -93,23 +93,22 @@ export const haptic = {
 /** Open the Telegram share picker with a pre-filled message.
  *  Falls back to Web Share API / clipboard when running outside Telegram.
  *
- *  If `url` is provided, it gets embedded at the end of the message text
- *  rather than passed via share/url's `url=` parameter. The `url=` channel
- *  produces a URL entity that some Telegram clients (notably older iOS)
- *  fail to relay as a clickable link to the recipient — plain-text URL
- *  auto-linkification works on every client. */
+ *  Trick to make the link clickable for the recipient: pass an empty
+ *  `url=` and put the real URL inline within the message text on the same
+ *  line as surrounding copy ("Спробуй сам: https://…"). When `url=` is
+ *  non-empty, Telegram tags it as a URL entity which (a) iOS may strip
+ *  on relay, and (b) suppresses auto-linkification for the rest of the
+ *  message body. With `url=` empty, no entities exist and every client's
+ *  plain-text URL detector picks up the inline link. */
 export async function shareResult(text: string, url?: string): Promise<'telegram' | 'web-share' | 'clipboard' | 'unsupported'> {
-  const fullText = url ? `${text}\n${url}` : text;
+  const fullText = url ? `${text} ${url}` : text;
   const app = tg();
   if (app?.openTelegramLink) {
     // URLSearchParams encodes spaces as `+`, which Telegram's share endpoint
     // renders literally. encodeURIComponent keeps `%20` so the message reads
-    // as written. We still pass `url=` (Telegram requires a non-empty value
-    // for the share dialog to open reliably) but make it match what's already
-    // inline in the text — the client dedupes when composing the message.
-    const u = encodeURIComponent(url ?? text);
+    // as written.
     const t = encodeURIComponent(fullText);
-    app.openTelegramLink(`https://t.me/share/url?url=${u}&text=${t}`);
+    app.openTelegramLink(`https://t.me/share/url?url=&text=${t}`);
     return 'telegram';
   }
   if (typeof navigator !== 'undefined' && 'share' in navigator) {
