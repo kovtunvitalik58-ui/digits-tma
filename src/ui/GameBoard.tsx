@@ -3,7 +3,6 @@ import { NumberCardView } from './NumberCardView';
 import { OpButton } from './OpButton';
 import { OPS } from '../game/ops';
 import type { PreviewMap } from '../game/useGame';
-import type { Hint } from '../game/hint';
 
 type Props = {
   cards: NumberCard[];
@@ -12,9 +11,6 @@ type Props = {
   previewResults: PreviewMap;
   target: number;
   playing: boolean;
-  /** When set, the matching two cards and the op button glow amber to
-   *  point the player at the suggested next move. */
-  hint?: Hint | null;
   onPickCard: (id: string) => void;
   onPickOp: (op: Op) => void;
 };
@@ -26,7 +22,6 @@ export function GameBoard({
   previewResults,
   target,
   playing,
-  hint,
   onPickCard,
   onPickOp,
 }: Props) {
@@ -52,8 +47,6 @@ export function GameBoard({
             const preview = previewResults.has(c.id)
               ? previewResults.get(c.id) ?? null
               : undefined;
-            const isHinted =
-              !!hint && (hint.leftId === c.id || hint.rightId === c.id);
             return (
               <NumberCardView
                 key={c.id}
@@ -62,7 +55,6 @@ export function GameBoard({
                 frozen={!playing}
                 preview={preview}
                 winning={preview !== undefined && preview !== null && preview === target}
-                hinted={isHinted}
                 onPick={onPickCard}
               />
             );
@@ -77,7 +69,6 @@ export function GameBoard({
             op={op}
             selected={selectedOp === op}
             enabled={playing && hasSelection}
-            hinted={hint?.op === op}
             onPick={onPickOp}
           />
         ))}
