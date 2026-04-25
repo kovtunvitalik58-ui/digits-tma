@@ -50,7 +50,9 @@ export function touchUser(id, info) {
     const next = {
         id: key,
         firstName: info.firstName ?? existing?.firstName,
+        lastName: info.lastName ?? existing?.lastName,
         username: info.username ?? existing?.username,
+        photoUrl: info.photoUrl ?? existing?.photoUrl,
         languageCode: info.languageCode ?? existing?.languageCode,
         firstSeen: existing?.firstSeen ?? now,
         lastSeen: now,
@@ -58,6 +60,21 @@ export function touchUser(id, info) {
     db.users[key] = next;
     save();
     return next;
+}
+export function getUser(id) {
+    return load().users[String(id)] ?? null;
+}
+/** Sum of stars across every recorded daily result for this user. */
+export function totalStars(id) {
+    const db = load();
+    const key = String(id);
+    let sum = 0;
+    for (const day of Object.values(db.results)) {
+        const r = day[key];
+        if (r)
+            sum += r.stars;
+    }
+    return sum;
 }
 /** Adds a bidirectional friendship edge. Safe to call with matching ids —
  *  self-referrals are ignored. */

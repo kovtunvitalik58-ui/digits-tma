@@ -15,7 +15,9 @@ export type DB = {
 export type UserRecord = {
   id: string;
   firstName?: string;
+  lastName?: string;
   username?: string;
+  photoUrl?: string;
   languageCode?: string;
   firstSeen: number;
   lastSeen: number;
@@ -74,7 +76,13 @@ export function save(): void {
 /** Idempotent — upserts user stamps and returns the record. */
 export function touchUser(
   id: number,
-  info: { firstName?: string; username?: string; languageCode?: string },
+  info: {
+    firstName?: string;
+    lastName?: string;
+    username?: string;
+    photoUrl?: string;
+    languageCode?: string;
+  },
 ): UserRecord {
   const db = load();
   const key = String(id);
@@ -83,7 +91,9 @@ export function touchUser(
   const next: UserRecord = {
     id: key,
     firstName: info.firstName ?? existing?.firstName,
+    lastName: info.lastName ?? existing?.lastName,
     username: info.username ?? existing?.username,
+    photoUrl: info.photoUrl ?? existing?.photoUrl,
     languageCode: info.languageCode ?? existing?.languageCode,
     firstSeen: existing?.firstSeen ?? now,
     lastSeen: now,
@@ -91,6 +101,22 @@ export function touchUser(
   db.users[key] = next;
   save();
   return next;
+}
+
+export function getUser(id: number | string): UserRecord | null {
+  return load().users[String(id)] ?? null;
+}
+
+/** Sum of stars across every recorded daily result for this user. */
+export function totalStars(id: number | string): number {
+  const db = load();
+  const key = String(id);
+  let sum = 0;
+  for (const day of Object.values(db.results)) {
+    const r = day[key];
+    if (r) sum += r.stars;
+  }
+  return sum;
 }
 
 /** Adds a bidirectional friendship edge. Safe to call with matching ids —

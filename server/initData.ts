@@ -45,3 +45,22 @@ export type TelegramUser = {
   language_code?: string;
   photo_url?: string;
 };
+
+/** Capture every profile-shaped field from the validated Telegram user
+ *  in one shot — every register/result handler does the same dance, so
+ *  it lives here. */
+export function profileInfo(user: TelegramUser): {
+  firstName?: string;
+  lastName?: string;
+  username?: string;
+  photoUrl?: string;
+  languageCode?: string;
+} {
+  return {
+    firstName: user.first_name,
+    lastName: user.last_name,
+    username: user.username,
+    photoUrl: user.photo_url,
+    languageCode: user.language_code,
+  };
+}

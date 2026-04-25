@@ -34,3 +34,15 @@ export function validateInitData(initData, botToken, maxAgeSeconds = 60 * 60 * 2
         return null;
     }
 }
+/** Capture every profile-shaped field from the validated Telegram user
+ *  in one shot — every register/result handler does the same dance, so
+ *  it lives here. */
+export function profileInfo(user) {
+    return {
+        firstName: user.first_name,
+        lastName: user.last_name,
+        username: user.username,
+        photoUrl: user.photo_url,
+        languageCode: user.language_code,
+    };
+}

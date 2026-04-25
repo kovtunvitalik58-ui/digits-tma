@@ -11,7 +11,7 @@ import { OnboardingSheet } from './ui/OnboardingSheet';
 import { getStartParam, getUserId, haptic, shareResult, storage } from './lib/telegram';
 import { loadStats, recordDailySolve, saveStats, type Stats } from './game/stats';
 import { buildShareText } from './game/share';
-import { buildReferralUrl, parseRefFromStartParam, registerFriendship } from './game/friends';
+import { buildReferralUrl, parseRefFromStartParam } from './game/friends';
 import {
   loadDailyResult,
   loadDailyResultSync,
@@ -113,16 +113,12 @@ function GameApp() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Pick up referral on first open. Runs every launch so an existing player
-  // who taps a friend's link still gets the edge registered (idempotent).
-  // Also pings the backend with the current user + optional referrer so
-  // daily-push and friend-result notifications have someone to send to.
+  // Tell the backend who's playing so it can notify friends and run the
+  // daily push. Carries the referrer too in case the player landed via a
+  // direct-link mini-app URL — the canonical path is the bot webhook on
+  // /start ref_<id>, but this stays as a fallback.
   useEffect(() => {
     const referrer = parseRefFromStartParam(getStartParam());
-    const me = getUserId();
-    if (referrer !== null) {
-      registerFriendship(me, referrer).catch(() => void 0);
-    }
     registerUser(referrer);
   }, []);
 

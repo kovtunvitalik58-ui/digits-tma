@@ -1,10 +1,10 @@
 import { AnimatePresence, motion } from 'motion/react';
 import { useEffect, useState } from 'react';
-import { getFriendIds } from '../game/friends';
 import { getUser, getUserDisplayName } from '../lib/telegram';
-import { loadDailyResult, loadDailyResultSync } from '../game/dailyResult';
-import { loadStats, loadStatsSync } from '../game/stats';
+import { loadDailyResultSync } from '../game/dailyResult';
+import { loadStatsSync } from '../game/stats';
 import { kyivIsoDate } from '../lib/kyivDate';
+import { fetchLeaderboard, type LeaderRow } from '../lib/api';
 import type { Stars } from '../game/types';
 
 type Tab = 'today' | 'all';
@@ -73,89 +73,57 @@ function TabSwitch({ value, onChange }: { value: Tab; onChange: (t: Tab) => void
   );
 }
 
-type Row = {
-  id: string;
-  rank: number;
-  name: string;
-  photoUrl?: string;
-  /** Today's daily result — shown in the "Сьогодні" tab. */
-  stars?: Stars;
-  opsUsed?: number;
-  /** Sum of stars earned across every solved daily — shown in "За весь час". */
-  totalStars?: number;
-  isMe?: boolean;
-};
+type Row = LeaderRow & { rank: number; isMe: boolean };
 
 function FriendsList({ tab, onShare }: { tab: Tab; onShare: () => void }) {
-  // Render the "me" row synchronously so the leaderboard is never blank,
-  // and seed both scores (today's + all-time) so switching tabs doesn't
-  // reveal an empty cell until async storage resolves.
-  const me = getUser();
+  // Synchronous "me" row from local Telegram + storage so the sheet is
+  // never blank while the server fetch resolves. Replaced by the server
+  // payload as soon as /api/leaderboard returns.
+  const meTg = getUser();
   const today = kyivIsoDate();
   const myTodaySync = loadDailyResultSync(today);
   const myStatsSync = loadStatsSync();
-  const meRowInitial: Row = {
-    id: me ? `u${me.id}` : 'me',
-    rank: 1,
+  const meSeed: LeaderRow = {
+    id: meTg ? String(meTg.id) : 'me',
     name: getUserDisplayName(),
-    photoUrl: me?.photo_url,
-    stars: myTodaySync?.stars,
-    opsUsed: myTodaySync?.opsUsed,
+    photoUrl: meTg?.photo_url,
     totalStars: myStatsSync.totalStars,
-    isMe: true,
+    today: myTodaySync
+      ? {
+          stars: myTodaySync.stars,
+          opsUsed: myTodaySync.opsUsed,
+          closest: myTodaySync.closest,
+        }
+      : undefined,
   };
-  const [rows, setRows] = useState<Row[]>([meRowInitial]);
+  const [me, setMe] = useState<LeaderRow>(meSeed);
+  const [friends, setFriends] = useState<LeaderRow[]>([]);
 
   useEffect(() => {
     let cancelled = false;
-    (async () => {
-      const [friendIds, myToday, myStats] = await Promise.all([
-        getFriendIds(),
-        loadDailyResult(today),
-        loadStats(),
-      ]);
-      if (cancelled) return;
-      const next: Row[] = [
-        {
-          ...meRowInitial,
-          stars: myToday?.stars ?? meRowInitial.stars,
-          opsUsed: myToday?.opsUsed ?? meRowInitial.opsUsed,
-          totalStars: myStats.totalStars,
-        },
-      ];
-      friendIds.forEach((fid) => {
-        next.push({
-          id: `u${fid}`,
-          rank: next.length + 1,
-          name: `Друг #${String(fid).slice(-4)}`,
-        });
-      });
-      setRows(next);
-    })();
+    fetchLeaderboard().then((board) => {
+      if (cancelled || !board) return;
+      setMe(board.me);
+      setFriends(board.friends);
+    });
     return () => {
       cancelled = true;
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // All-time view ranks rows by totalStars (descending). Today view keeps
-  // the server-assigned order (self first, then friends).
-  const viewRows =
+  const sorted =
     tab === 'all'
-      ? [...rows]
-          .sort((a, b) => (b.totalStars ?? 0) - (a.totalStars ?? 0))
-          .map((r, i) => ({ ...r, rank: i + 1 }))
-      : rows;
+      ? [me, ...friends].sort((a, b) => b.totalStars - a.totalStars)
+      : [me, ...friends];
 
-  if (rows.length === 1) {
-    return (
-      <>
-        <RowList rows={viewRows} tab={tab} />
-        <InviteHint onShare={onShare} />
-      </>
-    );
-  }
-  return <RowList rows={viewRows} tab={tab} />;
+  const rows = sorted.map((r, i) => ({ ...r, rank: i + 1, isMe: r.id === me.id }));
+
+  return (
+    <>
+      <RowList rows={rows} tab={tab} />
+      {friends.length === 0 && <InviteHint onShare={onShare} />}
+    </>
+  );
 }
 
 function RowList({ rows, tab }: { rows: Row[]; tab: Tab }) {
@@ -175,7 +143,10 @@ function RowList({ rows, tab }: { rows: Row[]; tab: Tab }) {
           <Avatar name={r.name} photoUrl={r.photoUrl} />
           <span className="flex-1 truncate text-sm">{r.name}</span>
           {tab === 'today' ? (
-            <TodayScore stars={r.stars} opsUsed={r.opsUsed} />
+            <TodayScore
+              stars={r.today?.stars as Stars | undefined}
+              opsUsed={r.today?.opsUsed}
+            />
           ) : (
             <AllTimeScore totalStars={r.totalStars} />
           )}

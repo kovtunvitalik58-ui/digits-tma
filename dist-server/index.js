@@ -2,8 +2,8 @@ import express from 'express';
 import cron from 'node-cron';
 import path from 'node:path';
 import fs from 'node:fs';
-import { validateInitData } from './initData.js';
-import { addFriendship, allUserIds, friendsOf, load as loadDB, putResult, resultsOn, touchUser, } from './db.js';
+import { profileInfo, validateInitData } from './initData.js';
+import { addFriendship, allUserIds, friendsOf, getUser, load as loadDB, putResult, resultsOn, totalStars, touchUser, } from './db.js';
 import { sendMessage } from './telegram.js';
 const BOT_TOKEN = process.env.BOT_TOKEN ?? '';
 const PORT = Number(process.env.PORT) || 3000;
@@ -47,22 +47,14 @@ app.post('/api/register', (req, res) => {
         console.log('[register] 401 — bad initData');
         return res.status(401).json({ ok: false });
     }
-    touchUser(user.id, {
-        firstName: user.first_name,
-        username: user.username,
-        languageCode: user.language_code,
-    });
-    // Optional referrer — from the same initData, the mini-app passes
-    // `start_param` in the body if it looked like a `ref_<id>`. We also log
-    // the raw `startParam` the client saw so we can tell whether Telegram
-    // dropped it vs. our parsing failed.
+    touchUser(user.id, profileInfo(user));
+    // Optional referrer — kept for backward compatibility, though the
+    // canonical referral path is the bot webhook /start ref_<id>.
     const body = req.body;
-    const rawStartParam = body.startParam;
-    // Fallback: if the client didn't parse a referrer but Telegram gave us a
-    // ref_<id> start_param, parse it here.
     let referrer = Number(body.referrer);
-    if ((!Number.isFinite(referrer) || referrer <= 0) && typeof rawStartParam === 'string') {
-        const m = /^ref_(\d+)$/.exec(rawStartParam);
+    if ((!Number.isFinite(referrer) || referrer <= 0) &&
+        typeof body.startParam === 'string') {
+        const m = /^ref_(\d+)$/.exec(body.startParam);
         if (m)
             referrer = Number(m[1]);
     }
@@ -71,19 +63,44 @@ app.post('/api/register', (req, res) => {
         addFriendship(user.id, referrer);
         linked = true;
     }
-    const friends = friendsOf(user.id);
-    console.log(`[register] user=${user.id} ref=${body.referrer ?? '-'} startParam=${JSON.stringify(rawStartParam)} linked=${linked} friends=${friends.length}`);
-    return res.json({ ok: true, friends });
+    console.log(`[register] user=${user.id} linked=${linked}`);
+    return res.json({ ok: true });
+});
+function rowFor(id, dateId) {
+    const u = getUser(id);
+    const fallback = `Гравець ${String(id).slice(-4)}`;
+    const fullName = u
+        ? [u.firstName, u.lastName].filter(Boolean).join(' ').trim()
+        : '';
+    const name = fullName || u?.username || fallback;
+    const today = resultsOn(dateId)[String(id)];
+    return {
+        id: String(id),
+        name,
+        photoUrl: u?.photoUrl,
+        totalStars: totalStars(id),
+        today: today
+            ? { stars: today.stars, opsUsed: today.opsUsed, closest: today.closest }
+            : undefined,
+    };
+}
+app.post('/api/leaderboard', (req, res) => {
+    const user = authed(req.body);
+    if (!user)
+        return res.status(401).json({ ok: false });
+    // Touch on every leaderboard fetch so a returning player can't fall out
+    // of the user table after a wipe.
+    touchUser(user.id, profileInfo(user));
+    const dateId = kyivIsoDate();
+    const me = rowFor(user.id, dateId);
+    const friends = friendsOf(user.id).map((fid) => rowFor(fid, dateId));
+    return res.json({ ok: true, me, friends });
 });
 app.post('/api/result', async (req, res) => {
     const user = authed(req.body);
     if (!user)
         return res.status(401).json({ ok: false });
-    touchUser(user.id, {
-        firstName: user.first_name,
-        username: user.username,
-        languageCode: user.language_code,
-    });
+    touchUser(user.id, profileInfo(user));
     const body = req.body;
     const r = body.result;
     if (!r ||
@@ -153,8 +170,11 @@ app.post('/api/tg-webhook', async (req, res) => {
         }
         touchUser(from.id, {
             firstName: from.first_name,
+            lastName: from.last_name,
             username: from.username,
             languageCode: from.language_code,
+            // Bot API /start updates don't carry photo_url — the mini-app
+            // backfills it via /api/register when the player launches.
         });
         let linked = false;
         if (referrer !== null && referrer > 0 && referrer !== from.id) {
