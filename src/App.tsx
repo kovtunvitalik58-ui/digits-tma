@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useGame } from './game/useGame';
 import { todayPuzzle } from './game/generator';
+import { nextHint, type Hint } from './game/hint';
 import { puzzleSignature, trainingPuzzle } from './game/training';
 import { Header } from './ui/Header';
 import { GameBoard } from './ui/GameBoard';
@@ -103,6 +104,11 @@ function GameApp() {
   const [mode, setMode] = useState<'daily' | 'training'>('daily');
   const [trainingCount, setTrainingCount] = useState(0);
   const [trainingSeen, setTrainingSeen] = useState<string[]>([]);
+  // Active hint: glow on the two suggested operand cards + the operation
+  // button. Stays put until the player either makes any move (auto-cleared
+  // by an effect on history length) or taps "Підказка" again from a fresh
+  // board state.
+  const [hint, setHint] = useState<Hint | null>(null);
 
   // Load persisted stats once.
   useEffect(() => {
@@ -279,6 +285,28 @@ function GameApp() {
     startNextTraining(false);
   };
 
+  // Hint flow: re-solve from the live board on demand and surface the
+  // first suggested step. No daily quota during beta — when paid Premium
+  // ships, this gate moves to a server-checked subscription state.
+  const onHint = () => {
+    if (!playing) return;
+    haptic.tap();
+    const h = nextHint(game.state.puzzle);
+    if (!h) {
+      game.actions.setToast('Підказки немає — спробуй заново');
+      setHint(null);
+      return;
+    }
+    setHint(h);
+  };
+
+  // Clear the glow once the player makes any move — the hint maps to a
+  // specific board state and goes stale the instant cards rearrange.
+  const historyLen = game.state.puzzle.history.length;
+  useEffect(() => {
+    setHint(null);
+  }, [historyLen, puzzleId]);
+
   // Drop training and put the daily back on screen exactly as it was —
   // restored finished board if there's a saved result, otherwise reload
   // today's puzzle from scratch (player walked into training before
@@ -313,6 +341,7 @@ function GameApp() {
         previewResults={game.previewResults}
         target={game.target}
         playing={playing}
+        hint={hint}
         onPickCard={game.actions.pickCard}
         onPickOp={game.actions.pickOp}
       />
@@ -320,8 +349,11 @@ function GameApp() {
       <Toolbar
         canUndo={game.state.puzzle.history.length > 0 && playing}
         canFinish={playing && game.liveStars > 0}
+        canHint={playing}
+        hintActive={hint !== null}
         onUndo={game.actions.undo}
         onFinish={game.actions.finish}
+        onHint={onHint}
       />
 
       <Toast message={game.state.toast} onDone={game.actions.clearToast} />

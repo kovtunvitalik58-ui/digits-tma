@@ -6,10 +6,14 @@ type Props = {
   op: Op;
   selected: boolean;
   enabled: boolean;
+  /** Amber outline + glow when this op is the suggested next move from a
+   *  hint. Layered on top of `selected` styling — if the player picks the
+   *  hinted op, accent overrides hint visuals. */
+  hinted?: boolean;
   onPick: (op: Op) => void;
 };
 
-export function OpButton({ op, selected, enabled, onPick }: Props) {
+export function OpButton({ op, selected, enabled, hinted, onPick }: Props) {
   return (
     <motion.button
       whileTap={{ scale: 0.88 }}
@@ -24,12 +28,14 @@ export function OpButton({ op, selected, enabled, onPick }: Props) {
         'relative h-14 w-14 rounded-2xl flex items-center justify-center text-3xl font-semibold overflow-hidden ' +
         (selected
           ? 'bg-accent-fill text-white glow-accent border border-white/30'
-          : 'glass glass-raise text-text')
+          : hinted
+            ? 'glass glass-raise text-amber-200 ring-2 ring-amber-300/80 glow-amber'
+            : 'glass glass-raise text-text')
       }
       aria-pressed={selected}
       aria-label={`Operation ${op}`}
     >
-      {!selected && (
+      {!selected && !hinted && (
         <span
           aria-hidden
           className="absolute inset-x-0 top-0 h-1/2 rounded-t-2xl bg-gradient-to-b from-white/10 to-transparent pointer-events-none"
