@@ -1,5 +1,5 @@
-import type { GameStatus, NumberCard, Op, Puzzle, PuzzleState, Stars, Step } from './types';
-import { apply } from './ops';
+import type { GameStatus, NumberCard, Op, Puzzle, PuzzleState, Stars, Step } from './types.js';
+import { apply } from './ops.js';
 
 /** Convert distance-from-target into a 0..3 star rank.
  *  3★ exact, 2★ within 10, 1★ within 20, 0★ further away. */

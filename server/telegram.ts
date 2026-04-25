@@ -1,10 +1,6 @@
 const BOT_TOKEN = process.env.BOT_TOKEN;
-const BOT_USERNAME = process.env.VITE_BOT_USERNAME ?? process.env.BOT_USERNAME;
-const APP_NAME = process.env.VITE_APP_NAME ?? process.env.APP_NAME ?? 'play';
 const APP_URL =
   process.env.APP_URL ?? 'https://digits-tma-production.up.railway.app';
-void BOT_USERNAME;
-void APP_NAME;
 
 if (!BOT_TOKEN) {
   console.warn('[telegram] BOT_TOKEN is not set — push notifications disabled.');
@@ -18,8 +14,13 @@ type SendMessageOptions = {
   openAppButton?: string;
 };
 
+const sleep = (ms: number): Promise<void> =>
+  new Promise((resolve) => setTimeout(resolve, ms));
+
 /** Fire-and-forget push to a single chat. Errors are swallowed — we never
- *  want a bad sendMessage to crash the whole daily broadcast. */
+ *  want a bad sendMessage to crash the whole daily broadcast. Honors
+ *  Telegram's 429 `retry_after` once: a single retry is enough to ride out
+ *  per-chat rate limits without piling up the worker. */
 export async function sendMessage(
   chatId: string | number,
   text: string,
@@ -39,19 +40,47 @@ export async function sendMessage(
       ],
     };
   }
-  try {
-    const res = await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`, {
-      method: 'POST',
-      headers: { 'content-type': 'application/json' },
-      body: JSON.stringify(body),
-    });
-    if (!res.ok) {
+  for (let attempt = 0; attempt < 2; attempt += 1) {
+    try {
+      const res = await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify(body),
+      });
+      if (res.ok) return true;
+      if (res.status === 429 && attempt === 0) {
+        // Cap at 30s — anything longer means the bot is broadly rate-limited
+        // and we'd rather drop this push than block the worker further.
+        const wait = await readRetryAfter(res);
+        if (wait <= 30_000) {
+          await sleep(wait);
+          continue;
+        }
+      }
       console.warn(`[telegram] sendMessage ${chatId} → ${res.status}`);
       return false;
+    } catch (err) {
+      console.warn('[telegram] sendMessage failed', err);
+      return false;
     }
-    return true;
-  } catch (err) {
-    console.warn('[telegram] sendMessage failed', err);
-    return false;
   }
+  return false;
+}
+
+async function readRetryAfter(res: Response): Promise<number> {
+  // Telegram puts retry_after in the JSON body's `parameters`. Header is also
+  // sometimes set — fall back to it.
+  try {
+    const data = (await res.json()) as {
+      parameters?: { retry_after?: number };
+    };
+    const ra = data.parameters?.retry_after;
+    if (typeof ra === 'number' && ra > 0) return ra * 1000;
+  } catch {
+    // ignore parse errors
+  }
+  const header = res.headers.get('retry-after');
+  const n = header ? Number(header) : NaN;
+  if (Number.isFinite(n) && n > 0) return n * 1000;
+  return 1000;
 }

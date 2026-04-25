@@ -8,11 +8,10 @@
     "build": "tsc -b && vite build && node -e \"require('fs').copyFileSync('serve.json','dist/serve.json')\" && npm run build:server",
     "build:server": "tsc -p tsconfig.server.json",
     "preview": "vite preview --host",
-    "start": "node dist-server/index.js",
+    "start": "node dist-server/server/index.js",
     "typecheck": "tsc -b --noEmit"
   },
   "dependencies": {
-    "@telegram-apps/sdk-react": "^3.3.1",
     "express": "^4.21.2",
     "motion": "^12.4.3",
     "node-cron": "^3.0.3",

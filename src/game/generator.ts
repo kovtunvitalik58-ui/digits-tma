@@ -1,6 +1,6 @@
-import type { Puzzle } from './types';
-import { solve, reachableValues } from './solver';
-import { kyivDayOfWeek, kyivIsoDate } from '../lib/kyivDate';
+import type { Puzzle } from './types.js';
+import { solve, reachableValues } from './solver.js';
+import { kyivDayOfWeek, kyivIsoDate } from '../lib/kyivDate.js';
 
 type GenOptions = {
   /** How many starters (NYT uses 6). */
@@ -116,6 +116,10 @@ export function generatePuzzle({
 
   // Fallback: verified hand-crafted puzzle so the UI never shows a broken state.
   // 25 × 5 = 125;  125 + 10 = 135;  135 + 7 = 142  (exactly 3 ops)
+  console.warn(
+    `[generator] falling back to canned puzzle for seed=${seed ?? id} ` +
+      `minSteps=${minSteps} after ${tries} unsuccessful tries`,
+  );
   return {
     id: `${id}-fallback`,
     numbers: [2, 3, 5, 7, 10, 25],
