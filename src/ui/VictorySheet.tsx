@@ -9,8 +9,13 @@ type Props = {
   target: number;
   closest: number | null;
   opsUsed: number;
+  /** 'daily' shows share + close. 'training' swaps in "Ще одну" + "Завершити"
+   *  and hides share — training results aren't worth posting. */
+  mode?: 'daily' | 'training';
   onShare: () => void;
   onClose: () => void;
+  /** Required when `mode === 'training'`. Triggered by the "Ще одну" CTA. */
+  onPlayAnother?: () => void;
 };
 
 export function VictorySheet({
@@ -20,8 +25,10 @@ export function VictorySheet({
   target,
   closest,
   opsUsed,
+  mode = 'daily',
   onShare,
   onClose,
+  onPlayAnother,
 }: Props) {
   return (
     <AnimatePresence>
@@ -63,27 +70,46 @@ export function VictorySheet({
               )}
               <span className="opacity-40"> · {opsUsed} ход{ruPlural(opsUsed, '', 'и', 'ів')}</span>
             </div>
-            <div className="mt-6 grid grid-cols-[1fr_auto] gap-2.5">
-              <button
-                onClick={onShare}
-                className="relative overflow-hidden h-12 rounded-2xl bg-accent-fill text-white font-semibold text-base glow-accent border border-white/25 active:brightness-110 flex items-center justify-center gap-2"
-              >
-                <span aria-hidden className="absolute inset-x-0 top-0 h-1/2 rounded-t-2xl bg-gradient-to-b from-white/15 to-transparent pointer-events-none" />
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" className="relative z-10">
-                  <path d="M4 12v7a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-7" />
-                  <polyline points="16 6 12 2 8 6" />
-                  <line x1="12" y1="2" x2="12" y2="15" />
-                </svg>
-                <span className="relative z-10">Поділитись</span>
-              </button>
-              <button
-                onClick={onClose}
-                aria-label="Закрити"
-                className="h-12 px-4 rounded-2xl glass text-text font-medium text-sm active:brightness-110"
-              >
-                Закрити
-              </button>
-            </div>
+            {mode === 'training' ? (
+              <div className="mt-6 grid grid-cols-[1fr_auto] gap-2.5">
+                <button
+                  onClick={onPlayAnother}
+                  className="relative overflow-hidden h-12 rounded-2xl bg-accent-fill text-white font-semibold text-base glow-accent border border-white/25 active:brightness-110 flex items-center justify-center gap-2"
+                >
+                  <span aria-hidden className="absolute inset-x-0 top-0 h-1/2 rounded-t-2xl bg-gradient-to-b from-white/15 to-transparent pointer-events-none" />
+                  <span className="relative z-10">Ще одну</span>
+                </button>
+                <button
+                  onClick={onClose}
+                  aria-label="Завершити тренування"
+                  className="h-12 px-4 rounded-2xl glass text-text font-medium text-sm active:brightness-110"
+                >
+                  Завершити
+                </button>
+              </div>
+            ) : (
+              <div className="mt-6 grid grid-cols-[1fr_auto] gap-2.5">
+                <button
+                  onClick={onShare}
+                  className="relative overflow-hidden h-12 rounded-2xl bg-accent-fill text-white font-semibold text-base glow-accent border border-white/25 active:brightness-110 flex items-center justify-center gap-2"
+                >
+                  <span aria-hidden className="absolute inset-x-0 top-0 h-1/2 rounded-t-2xl bg-gradient-to-b from-white/15 to-transparent pointer-events-none" />
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" className="relative z-10">
+                    <path d="M4 12v7a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-7" />
+                    <polyline points="16 6 12 2 8 6" />
+                    <line x1="12" y1="2" x2="12" y2="15" />
+                  </svg>
+                  <span className="relative z-10">Поділитись</span>
+                </button>
+                <button
+                  onClick={onClose}
+                  aria-label="Закрити"
+                  className="h-12 px-4 rounded-2xl glass text-text font-medium text-sm active:brightness-110"
+                >
+                  Закрити
+                </button>
+              </div>
+            )}
           </motion.div>
         </>
       )}

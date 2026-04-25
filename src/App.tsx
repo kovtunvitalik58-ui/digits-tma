@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useGame } from './game/useGame';
 import { todayPuzzle } from './game/generator';
+import { trainingPuzzle } from './game/training';
 import { Header } from './ui/Header';
 import { GameBoard } from './ui/GameBoard';
 import { Toolbar } from './ui/Toolbar';
@@ -93,6 +94,13 @@ function GameApp() {
   const [premiumInfoOpen, setPremiumInfoOpen] = useState(false);
   const [recordedFor, setRecordedFor] = useState<string | null>(null);
   const [todayResult, setTodayResult] = useState<DailyResult | null>(initialDaily);
+  // Training mode lives entirely client-side: a different puzzle is loaded
+  // into the existing game machine, no result hits CloudStorage or the
+  // server, no streak movement. `trainingCount` increments per task so the
+  // generator's seed namespace (train-<userId>-<n>) never collides between
+  // consecutive trainings or across players.
+  const [mode, setMode] = useState<'daily' | 'training'>('daily');
+  const [trainingCount, setTrainingCount] = useState(0);
 
   // Load persisted stats once.
   useEffect(() => {
@@ -136,14 +144,17 @@ function GameApp() {
   const opsUsed = game.state.puzzle.history.length;
   useEffect(() => {
     if (status !== 'ended') return;
-    // If we've loaded a saved result from an earlier session, it's a replay —
-    // don't overwrite anything or re-trigger haptics.
-    if (todayResult) return;
+    // Replay path — saved daily restored on mount. No haptics, no save.
+    if (mode === 'daily' && todayResult) return;
 
     if (stars >= 2) haptic.success();
     else if (stars === 1) haptic.warn();
     else haptic.error();
     setVictoryOpen(true);
+
+    // Training tasks are ephemeral — no CloudStorage write, no leaderboard
+    // push, no streak update. Bail before any of those side effects fire.
+    if (mode === 'training') return;
 
     // Freeze the result for the rest of the Kyiv day.
     const result: DailyResult = {
@@ -171,19 +182,24 @@ function GameApp() {
       setStats(next);
     })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [status, puzzleId, stars, recordedFor, todayResult]);
+  }, [status, puzzleId, stars, recordedFor, todayResult, mode]);
 
-  // Once today's result is saved the board is frozen — no more ops, no undo.
-  const playing = status === 'playing' && !todayResult;
+  // Daily board freezes once the saved result lands; training is always
+  // live (no persistence) so the only freeze is the natural game-end.
+  const playing =
+    status === 'playing' && (mode === 'training' || !todayResult);
 
-  // When replaying (saved result exists), pull display values from storage
-  // instead of the live in-memory game which was reset on mount.
-  const displayStars = todayResult?.stars ?? stars;
-  const displayClosest = todayResult?.closest ?? game.closestValue.value;
-  const displayDistance =
-    todayResult?.distance ??
-    (game.closestValue.dist === Infinity ? 0 : game.closestValue.dist);
-  const displayOpsUsed = todayResult?.opsUsed ?? opsUsed;
+  // For daily replays, surface the saved values; for any live state
+  // (training task, or daily-in-progress), pull from the live game.
+  const useSavedDaily = mode === 'daily' && !!todayResult;
+  const displayStars = useSavedDaily ? todayResult.stars : stars;
+  const displayClosest = useSavedDaily ? todayResult.closest : game.closestValue.value;
+  const displayDistance = useSavedDaily
+    ? todayResult.distance
+    : game.closestValue.dist === Infinity
+      ? 0
+      : game.closestValue.dist;
+  const displayOpsUsed = useSavedDaily ? todayResult.opsUsed : opsUsed;
 
   const onShare = async () => {
     haptic.tap();
@@ -218,6 +234,46 @@ function GameApp() {
     setPremiumInfoOpen(true);
   };
 
+  // Switch the board to a fresh training task. Reuses the existing game
+  // machine via `actions.load`, so cards animate in just like at first
+  // mount. The first call also kicks the daily look-ahead cache to warm —
+  // any subsequent training on the same Kyiv day is instant.
+  const enterTraining = () => {
+    haptic.heavy();
+    const next = trainingCount + 1;
+    const p = trainingPuzzle(getUserId(), next);
+    setTrainingCount(next);
+    setMode('training');
+    setVictoryOpen(false);
+    game.actions.load(p);
+  };
+
+  // Same as enterTraining but doesn't re-haptic-heavy on every cycle —
+  // a softer tap matches the lighter "tap → next" intent inside training.
+  const nextTraining = () => {
+    haptic.tap();
+    const next = trainingCount + 1;
+    const p = trainingPuzzle(getUserId(), next);
+    setTrainingCount(next);
+    setVictoryOpen(false);
+    game.actions.load(p);
+  };
+
+  // Drop training and put the daily back on screen exactly as it was —
+  // restored finished board if there's a saved result, otherwise reload
+  // today's puzzle from scratch (player walked into training before
+  // finishing daily).
+  const exitTraining = () => {
+    haptic.tap();
+    setMode('daily');
+    setVictoryOpen(false);
+    if (todayResult?.finalState) {
+      game.actions.restore(todayResult.finalState);
+    } else {
+      game.actions.load(initialPuzzle);
+    }
+  };
+
   return (
     <div className="h-dvh overflow-hidden flex flex-col safe-top">
       <TopBar
@@ -228,7 +284,7 @@ function GameApp() {
         onShare={onShare}
       />
 
-      <Header target={puzzleState.target} liveStars={game.liveStars} />
+      <Header target={puzzleState.target} liveStars={game.liveStars} mode={mode} />
 
       <GameBoard
         cards={game.state.puzzle.cards}
@@ -252,13 +308,15 @@ function GameApp() {
 
       <VictorySheet
         open={victoryOpen}
+        mode={mode}
         stars={displayStars}
         distance={displayDistance}
         target={puzzleState.target}
         closest={displayClosest}
         opsUsed={displayOpsUsed}
         onShare={onShare}
-        onClose={() => setVictoryOpen(false)}
+        onClose={mode === 'training' ? exitTraining : () => setVictoryOpen(false)}
+        onPlayAnother={nextTraining}
       />
 
       <LeaderboardSheet
@@ -276,6 +334,7 @@ function GameApp() {
       <PremiumInfoSheet
         open={premiumInfoOpen}
         onClose={() => setPremiumInfoOpen(false)}
+        onTryTraining={enterTraining}
       />
     </div>
   );
