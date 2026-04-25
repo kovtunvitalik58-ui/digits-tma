@@ -5,11 +5,15 @@ import { storage } from '../lib/telegram';
  *  Format: `ref_<telegramUserId>`. Keep it short — Telegram allows ≤ 64 chars. */
 const REF_PREFIX = 'ref_';
 
-/** Build the shareable deep-link that carries the inviter's Telegram ID. */
+/** Build the shareable deep-link that carries the inviter's Telegram ID.
+ *  Uses the classic `?start=ref_<id>` bot-command form rather than the
+ *  mini-app `?startapp=` direct-link, because the latter requires the bot
+ *  to be configured as a Direct Link Mini App in BotFather and silently
+ *  drops the parameter otherwise. /start lands at the bot webhook which
+ *  records the friendship server-side and replies with a Грати button. */
 export function buildReferralUrl(inviterId: number | null): string {
-  const base = `https://t.me/${BOT_USERNAME}/${APP_NAME}`;
-  if (inviterId === null) return base;
-  return `${base}?startapp=${REF_PREFIX}${inviterId}`;
+  if (inviterId === null) return `https://t.me/${BOT_USERNAME}/${APP_NAME}`;
+  return `https://t.me/${BOT_USERNAME}?start=${REF_PREFIX}${inviterId}`;
 }
 
 /** Extract the referring user's ID from a start_param string.

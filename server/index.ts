@@ -160,6 +160,66 @@ app.post('/api/result', async (req, res) => {
   return res.json({ ok: true, notified: notifyCandidates.length });
 });
 
+/** Telegram webhook — receives /start with optional `ref_<id>` parameter.
+ *  Direct-link mini-app `?startapp=` doesn't propagate `start_param` for
+ *  this bot, so use the classic deep-link `/start ref_<id>` instead and
+ *  link the friendship server-side. Reply with an inline keyboard that
+ *  launches the mini-app via web_app button. */
+app.post('/api/tg-webhook', async (req, res) => {
+  // Acknowledge first so Telegram doesn't retry on slow handlers.
+  res.json({ ok: true });
+  try {
+    const update = req.body as {
+      message?: {
+        text?: string;
+        chat?: { id?: number };
+        from?: {
+          id?: number;
+          first_name?: string;
+          username?: string;
+          language_code?: string;
+        };
+      };
+    };
+    const msg = update.message;
+    const text = msg?.text;
+    const chatId = msg?.chat?.id;
+    const from = msg?.from;
+    if (!text || !chatId || !from?.id) return;
+
+    const m = /^\/start(?:\s+(\S+))?/i.exec(text);
+    if (!m) return;
+    const param = m[1] ?? null;
+    let referrer: number | null = null;
+    if (param) {
+      const refMatch = /^ref_(\d+)$/.exec(param);
+      if (refMatch) referrer = Number(refMatch[1]);
+    }
+
+    touchUser(from.id, {
+      firstName: from.first_name,
+      username: from.username,
+      languageCode: from.language_code,
+    });
+
+    let linked = false;
+    if (referrer !== null && referrer > 0 && referrer !== from.id) {
+      addFriendship(from.id, referrer);
+      linked = true;
+    }
+    console.log(
+      `[webhook] /start from=${from.id} param=${param ?? '-'} linked=${linked}`,
+    );
+
+    const greeting = linked
+      ? '🧮 Digits — щоденний математичний пазл.\nДруг тебе запросив — тапай «Грати», ваші результати будуть бачити одне одного.'
+      : '🧮 Digits — щоденний математичний пазл.\nСьогоднішня задача готова. Тапай «Грати»:';
+    await sendMessage(chatId, greeting, { openAppButton: 'Грати' });
+  } catch (err) {
+    console.error('[webhook] error', err);
+  }
+});
+
 /** Token-gated debug dump — used for operational sanity checks. The caller
  *  has to know the bot token so only the operator can see it. */
 app.get('/api/debug/stats', (req, res) => {
