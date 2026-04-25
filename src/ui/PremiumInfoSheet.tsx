@@ -31,11 +31,11 @@ export function PremiumInfoSheet({ open, onClose }: Props) {
               </span>
             </div>
             <h2 className="text-2xl font-bold text-center bg-gradient-to-b from-white to-white/70 bg-clip-text text-transparent">
-              Бонус активним
+              Premium
             </h2>
             <p className="mt-3 text-center text-sm text-hint leading-relaxed">
-              Збери <span className="text-text font-semibold">100 ⭐</span> за
-              місяць — і отримай обидва бонуси на наступний:
+              <span className="text-text font-semibold">100 ⭐ Telegram Stars</span>
+              {' '}на місяць — отримуєш обидва бонуси:
             </p>
 
             <div className="mt-5 flex flex-col gap-2.5">
@@ -50,6 +50,10 @@ export function PremiumInfoSheet({ open, onClose }: Props) {
                 icon={<TargetIcon />}
               />
             </div>
+
+            <p className="mt-4 text-center text-[11px] text-hint/70 leading-relaxed">
+              Оплата через Telegram. Скасуєш будь-коли.
+            </p>
 
             <button
               onClick={onClose}
