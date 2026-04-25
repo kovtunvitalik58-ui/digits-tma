@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useGame } from './game/useGame';
 import { todayPuzzle } from './game/generator';
-import { trainingPuzzle } from './game/training';
+import { puzzleSignature, trainingPuzzle } from './game/training';
 import { Header } from './ui/Header';
 import { GameBoard } from './ui/GameBoard';
 import { Toolbar } from './ui/Toolbar';
@@ -96,15 +96,30 @@ function GameApp() {
   const [todayResult, setTodayResult] = useState<DailyResult | null>(initialDaily);
   // Training mode lives entirely client-side: a different puzzle is loaded
   // into the existing game machine, no result hits CloudStorage or the
-  // server, no streak movement. `trainingCount` increments per task so the
-  // generator's seed namespace (train-<userId>-<n>) never collides between
-  // consecutive trainings or across players.
+  // server, no streak movement. `trainingCount` is persisted to storage so
+  // it never reuses a seed across sessions; `trainingSeen` carries the
+  // last-N {numbers, target} signatures so the generator can dodge repeats
+  // even when independent seeds would otherwise collide.
   const [mode, setMode] = useState<'daily' | 'training'>('daily');
   const [trainingCount, setTrainingCount] = useState(0);
+  const [trainingSeen, setTrainingSeen] = useState<string[]>([]);
 
   // Load persisted stats once.
   useEffect(() => {
     loadStats().then(setStats);
+  }, []);
+
+  // Hydrate the training counter + seen-set from storage so a player who
+  // closes and reopens the app continues with fresh, non-repeating tasks
+  // instead of restarting from train-<userId>-1.
+  useEffect(() => {
+    storage
+      .getJSON<{ count?: number; seen?: string[] }>(TRAINING_KEY)
+      .then((d) => {
+        if (!d) return;
+        if (typeof d.count === 'number' && d.count > 0) setTrainingCount(d.count);
+        if (Array.isArray(d.seen)) setTrainingSeen(d.seen);
+      });
   }, []);
 
   // Cross-device sync: if CloudStorage holds a newer result than the
@@ -234,29 +249,34 @@ function GameApp() {
     setPremiumInfoOpen(true);
   };
 
-  // Switch the board to a fresh training task. Reuses the existing game
-  // machine via `actions.load`, so cards animate in just like at first
-  // mount. The first call also kicks the daily look-ahead cache to warm —
-  // any subsequent training on the same Kyiv day is instant.
-  const enterTraining = () => {
-    haptic.heavy();
+  // Single helper for both "enter from sheet" and "play another after
+  // finishing" — increments the persistent counter, generates a puzzle that
+  // dodges every recently-seen signature, slides the new signature into
+  // the seen list (FIFO-capped at SEEN_CAP), and writes the lot back to
+  // storage so the next session continues uninterrupted.
+  const startNextTraining = (heavy: boolean): void => {
+    if (heavy) haptic.heavy();
+    else haptic.tap();
     const next = trainingCount + 1;
-    const p = trainingPuzzle(getUserId(), next);
+    const seen = new Set(trainingSeen);
+    const p = trainingPuzzle(getUserId(), next, seen);
+    const nextSeen = [...trainingSeen, puzzleSignature(p)].slice(-SEEN_CAP);
     setTrainingCount(next);
-    setMode('training');
+    setTrainingSeen(nextSeen);
+    storage
+      .setJSON(TRAINING_KEY, { count: next, seen: nextSeen })
+      .catch(() => void 0);
     setVictoryOpen(false);
     game.actions.load(p);
   };
 
-  // Same as enterTraining but doesn't re-haptic-heavy on every cycle —
-  // a softer tap matches the lighter "tap → next" intent inside training.
+  const enterTraining = () => {
+    setMode('training');
+    startNextTraining(true);
+  };
+
   const nextTraining = () => {
-    haptic.tap();
-    const next = trainingCount + 1;
-    const p = trainingPuzzle(getUserId(), next);
-    setTrainingCount(next);
-    setVictoryOpen(false);
-    game.actions.load(p);
+    startNextTraining(false);
   };
 
   // Drop training and put the daily back on screen exactly as it was —
@@ -343,6 +363,15 @@ function GameApp() {
 // Bumped if the instructions change materially, so returning players see the
 // updated onboarding once.
 const ONBOARDED_KEY = 'onboarded:v6';
+
+// CloudStorage key for the training counter + recently-seen signatures.
+// Keeping both under one key means one read on mount and one write per
+// task, no chance of the two falling out of sync.
+const TRAINING_KEY = 'training';
+// Upper bound on the seen-set. ~30 chars per entry × 100 = 3 KB, well under
+// CloudStorage's 4 KB-per-key budget. Past this point a player has clearly
+// played enough trainings that the oldest one is forgotten anyway.
+const SEEN_CAP = 100;
 
 // Must match the LS_PREFIX in src/lib/telegram.ts — `storage.set` mirrors all
 // writes there, so reading it directly is a valid synchronous shortcut.
