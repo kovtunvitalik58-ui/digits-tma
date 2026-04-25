@@ -1,4 +1,4 @@
-import type { Op } from './types';
+import type { Op } from './types.js';
 
 export const OPS: readonly Op[] = ['+', '-', '*', '/'] as const;
 

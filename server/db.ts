@@ -34,6 +34,16 @@ export type ResultRecord = {
 
 const DB_PATH = process.env.DB_PATH ?? path.join(process.cwd(), 'data', 'db.json');
 
+if (!process.env.DB_PATH) {
+  // Default lives inside the container — wiped on every Railway redeploy.
+  // Mount a volume and set DB_PATH to a path on it (e.g. /data/db.json) for
+  // anything that should survive a restart.
+  console.warn(
+    `[db] DB_PATH not set — using ephemeral ${DB_PATH}. Mount a persistent ` +
+      `volume and set DB_PATH=/data/db.json to keep users/results across deploys.`,
+  );
+}
+
 let cache: DB | null = null;
 let writeTimer: NodeJS.Timeout | null = null;
 

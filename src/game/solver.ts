@@ -1,5 +1,5 @@
-import type { Op, SolutionStep } from './types';
-import { OPS, apply, isCommutative } from './ops';
+import type { Op, SolutionStep } from './types.js';
+import { OPS, apply, isCommutative } from './ops.js';
 
 type SolveOptions = {
   maxSolutions?: number;
