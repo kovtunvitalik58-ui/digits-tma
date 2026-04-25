@@ -12,10 +12,14 @@ type Props = {
   preview?: number | null;
   /** True if the preview hits the puzzle target — this card would win. */
   winning?: boolean;
+  /** True when this card is one of the two operands of an active hint.
+   *  Same amber treatment as `winning`, applied in the absence of a live
+   *  preview. */
+  hinted?: boolean;
   onPick: (id: string) => void;
 };
 
-export function NumberCardView({ card, selected, frozen, preview, winning, onPick }: Props) {
+export function NumberCardView({ card, selected, frozen, preview, winning, hinted, onPick }: Props) {
   const used = card.used;
   const clickable = !used && !frozen;
   const previewActive = preview !== undefined;
@@ -32,7 +36,9 @@ export function NumberCardView({ card, selected, frozen, preview, winning, onPic
       ? 'glass text-hint'
       : winning
         ? 'glass-strong glass-raise text-text ring-2 ring-amber-300/80 glow-amber'
-        : 'glass glass-raise text-text';
+        : hinted
+          ? 'glass-strong glass-raise text-text ring-2 ring-amber-300/80 glow-amber'
+          : 'glass glass-raise text-text';
 
   return (
     <motion.button

@@ -28,6 +28,7 @@ type Action =
   | { type: 'finish' }
   | { type: 'load'; puzzle: Puzzle }
   | { type: 'restore'; state: PuzzleState }
+  | { type: 'set-toast'; message: string }
   | { type: 'clear-toast' };
 
 function initialize(puzzle: Puzzle): UIState {
@@ -55,6 +56,9 @@ function reducer(state: UIState, action: Action): UIState {
         selection: { phase: 'idle' },
         toast: null,
       };
+
+    case 'set-toast':
+      return state.toast === action.message ? state : { ...state, toast: action.message };
 
     case 'clear-toast':
       return state.toast === null ? state : { ...state, toast: null };
@@ -134,6 +138,9 @@ export function useGame(puzzle: Puzzle, initialPuzzleState?: PuzzleState) {
   const clearToast = useCallback(() => {
     dispatch({ type: 'clear-toast' });
   }, []);
+  const setToast = useCallback((message: string) => {
+    dispatch({ type: 'set-toast', message });
+  }, []);
 
   const selectedCardId = state.selection.phase !== 'idle' ? state.selection.cardId : null;
   const selectedOp = state.selection.phase === 'op' ? state.selection.op : null;
@@ -189,6 +196,7 @@ export function useGame(puzzle: Puzzle, initialPuzzleState?: PuzzleState) {
       finish: doFinish,
       load: loadPuzzle,
       restore: restoreState,
+      setToast,
       clearToast,
     },
   };
