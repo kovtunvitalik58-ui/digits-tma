@@ -8,6 +8,7 @@ import { Toast } from './ui/Toast';
 import { VictorySheet } from './ui/VictorySheet';
 import { LeaderboardSheet } from './ui/LeaderboardSheet';
 import { OnboardingSheet } from './ui/OnboardingSheet';
+import { PremiumInfoSheet } from './ui/PremiumInfoSheet';
 import { getStartParam, getUserId, haptic, shareResult, storage } from './lib/telegram';
 import { loadStats, recordDailySolve, saveStats, type Stats } from './game/stats';
 import { buildShareText } from './game/share';
@@ -89,6 +90,7 @@ function GameApp() {
   const [onboardingOpen, setOnboardingOpen] = useState(
     () => !readOnboardedFlagSync(),
   );
+  const [premiumInfoOpen, setPremiumInfoOpen] = useState(false);
   const [recordedFor, setRecordedFor] = useState<string | null>(null);
   const [todayResult, setTodayResult] = useState<DailyResult | null>(initialDaily);
 
@@ -211,12 +213,18 @@ function GameApp() {
     setOnboardingOpen(true);
   };
 
+  const openPremiumInfo = () => {
+    haptic.tap();
+    setPremiumInfoOpen(true);
+  };
+
   return (
     <div className="h-dvh overflow-hidden flex flex-col safe-top">
       <TopBar
         streak={stats?.streak ?? 0}
         onOpenLeaderboard={openLeaderboard}
         onOpenHelp={openOnboarding}
+        onOpenPremiumInfo={openPremiumInfo}
         onShare={onShare}
       />
 
@@ -264,6 +272,11 @@ function GameApp() {
         target={puzzleState.target}
         onClose={closeOnboarding}
       />
+
+      <PremiumInfoSheet
+        open={premiumInfoOpen}
+        onClose={() => setPremiumInfoOpen(false)}
+      />
     </div>
   );
 }
@@ -306,11 +319,13 @@ function TopBar({
   streak,
   onOpenLeaderboard,
   onOpenHelp,
+  onOpenPremiumInfo,
   onShare,
 }: {
   streak: number;
   onOpenLeaderboard: () => void;
   onOpenHelp: () => void;
+  onOpenPremiumInfo: () => void;
   onShare: () => void;
 }) {
   return (
@@ -380,6 +395,26 @@ function TopBar({
             <path d="M6 3h12v8a6 6 0 0 1-12 0z" />
             <path d="M10 21h4" />
             <path d="M12 17v4" />
+          </svg>
+        </button>
+        <button
+          onClick={onOpenPremiumInfo}
+          aria-label="Підказка та тренування"
+          className="w-9 h-9 rounded-full flex items-center justify-center text-hint active:text-text active:bg-surface/60"
+        >
+          <svg
+            width="20"
+            height="20"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          >
+            <path d="M15 14c.2-1 .7-1.7 1.5-2.5C17.7 10.2 18 9.5 18 8a6 6 0 0 0-12 0c0 1.5.5 2.2 1.5 3.5.8.8 1.3 1.5 1.5 2.5" />
+            <path d="M9 18h6" />
+            <path d="M10 22h4" />
           </svg>
         </button>
       </div>
