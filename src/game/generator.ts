@@ -100,6 +100,7 @@ export function generatePuzzle({
   const id = seed ?? `rand-${Date.now()}-${Math.floor(Math.random() * 1e6)}`;
   const rng = mulberry32(hashSeed(id));
 
+  // Pass 1 — strict: require exact `minSteps` match. Most days resolve here.
   for (let attempt = 0; attempt < tries; attempt += 1) {
     const numbers = drawStarters(rng, count);
     const target = chooseTarget(numbers, minSteps, rng);
@@ -114,11 +115,34 @@ export function generatePuzzle({
     return { id, numbers, target, minSteps: actualMin, solutionsSample: sample };
   }
 
+  // Pass 2 — lenient: a small fraction of seeds (~3% sampled across 60 days)
+  // never roll starters that admit a target reachable in EXACTLY `minSteps`,
+  // which used to dump every player onto the canned 142-puzzle for that
+  // calendar day. Accept ±1 step rather than that. The +1 branch comes
+  // first so the fallback errs harder, not easier, than the requested
+  // difficulty curve.
+  for (let attempt = 0; attempt < tries; attempt += 1) {
+    const numbers = drawStarters(rng, count);
+    for (const ms of [minSteps + 1, minSteps - 1]) {
+      if (ms < 2) continue;
+      const target = chooseTarget(numbers, ms, rng);
+      if (target === null) continue;
+      const sample = solve(numbers, target, { maxSolutions: 5 });
+      if (sample.length === 0) continue;
+      if (sample[0].length !== ms) continue;
+      console.warn(
+        `[generator] strict pass missed for seed=${seed ?? id} ` +
+          `minSteps=${minSteps}; serving ${ms}-step puzzle from lenient pass`,
+      );
+      return { id, numbers, target, minSteps: sample[0].length, solutionsSample: sample };
+    }
+  }
+
   // Fallback: verified hand-crafted puzzle so the UI never shows a broken state.
   // 25 × 5 = 125;  125 + 10 = 135;  135 + 7 = 142  (exactly 3 ops)
   console.warn(
     `[generator] falling back to canned puzzle for seed=${seed ?? id} ` +
-      `minSteps=${minSteps} after ${tries} unsuccessful tries`,
+      `minSteps=${minSteps} after ${tries * 2} unsuccessful tries (strict + lenient)`,
   );
   return {
     id: `${id}-fallback`,
