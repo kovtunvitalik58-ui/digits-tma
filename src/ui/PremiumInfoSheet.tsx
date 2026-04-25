@@ -3,9 +3,13 @@ import { AnimatePresence, motion } from 'motion/react';
 type Props = {
   open: boolean;
   onClose: () => void;
+  /** Triggers the training mode flow on the main screen. While the paid
+   *  subscription isn't wired yet, training is offered as a free beta —
+   *  hence the "(бета)" label on the CTA. */
+  onTryTraining: () => void;
 };
 
-export function PremiumInfoSheet({ open, onClose }: Props) {
+export function PremiumInfoSheet({ open, onClose, onTryTraining }: Props) {
   return (
     <AnimatePresence>
       {open && (
@@ -56,14 +60,23 @@ export function PremiumInfoSheet({ open, onClose }: Props) {
             </p>
 
             <button
-              onClick={onClose}
+              onClick={() => {
+                onClose();
+                onTryTraining();
+              }}
               className="relative overflow-hidden mt-6 w-full h-12 rounded-2xl bg-accent-fill text-white font-semibold text-base glow-accent border border-white/25 active:brightness-110"
             >
               <span
                 aria-hidden
                 className="absolute inset-x-0 top-0 h-1/2 rounded-t-2xl bg-gradient-to-b from-white/15 to-transparent pointer-events-none"
               />
-              <span className="relative z-10">Зрозуміло</span>
+              <span className="relative z-10">Спробувати тренувальну (бета)</span>
+            </button>
+            <button
+              onClick={onClose}
+              className="mt-2 w-full h-11 rounded-2xl text-hint font-medium text-sm active:text-text"
+            >
+              Зрозуміло
             </button>
           </motion.div>
         </>

@@ -4,12 +4,24 @@ import type { Stars } from '../game/types';
 type Props = {
   target: number;
   liveStars: Stars;
+  /** When 'training', the small caps label above the number flips from
+   *  "ЦІЛЬ" to "ТРЕНУВАННЯ" (in accent color) so the player can tell at a
+   *  glance the result here won't touch their streak. */
+  mode?: 'daily' | 'training';
 };
 
-export function Header({ target, liveStars }: Props) {
+export function Header({ target, liveStars, mode = 'daily' }: Props) {
+  const isTraining = mode === 'training';
   return (
     <header className="flex flex-col items-center pt-4 pb-6">
-      <div className="text-hint text-[11px] uppercase tracking-[0.28em] mb-1.5">Ціль</div>
+      <div
+        className={
+          'text-[11px] uppercase tracking-[0.28em] mb-1.5 ' +
+          (isTraining ? 'text-accent' : 'text-hint')
+        }
+      >
+        {isTraining ? 'Тренування' : 'Ціль'}
+      </div>
       <motion.div
         key={target}
         initial={{ scale: 0.7, opacity: 0 }}
