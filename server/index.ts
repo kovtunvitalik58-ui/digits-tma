@@ -312,21 +312,43 @@ app.get(/^\/(?!api\/).*/, (_req, res) => {
 // Daily broadcast cron — 09:30 Europe/Kyiv. Morning "coffee + puzzle" slot
 // lands after the commute crush but before the workday fully ramps, which
 // matches the engagement window observed on NYT-style daily puzzles.
+// Skips anyone who has already finished today's puzzle to avoid pinging
+// players who don't need a reminder.
 // --------------------------------------------------------------------------
-cron.schedule(
-  '30 9 * * *',
-  async () => {
-    const ids = allUserIds();
-    if (ids.length === 0) return;
-    const dateId = kyivIsoDate();
-    const text = `🧮 Digits на ${dateId}\nСьогоднішня задача вже готова — нова ціль і нові числа.`;
-    console.log(`[cron] daily broadcast to ${ids.length} users`);
-    for (const id of ids) {
-      await sendMessage(id, text, { openAppButton: 'Грати' });
+async function runDailyPush(): Promise<{ sent: number; skipped: number }> {
+  const ids = allUserIds();
+  if (ids.length === 0) return { sent: 0, skipped: 0 };
+  const dateId = kyivIsoDate();
+  const today = resultsOn(dateId);
+  const text = `🧮 Digits на ${dateId}\nСьогоднішня задача вже готова — нова ціль і нові числа.`;
+  let sent = 0;
+  let skipped = 0;
+  for (const id of ids) {
+    if (today[id]) {
+      skipped += 1;
+      continue;
     }
-  },
-  { timezone: 'Europe/Kyiv' },
-);
+    await sendMessage(id, text, { openAppButton: 'Грати' });
+    sent += 1;
+  }
+  console.log(`[cron] daily push: sent=${sent} skipped=${skipped}`);
+  return { sent, skipped };
+}
+
+cron.schedule('30 9 * * *', () => void runDailyPush(), { timezone: 'Europe/Kyiv' });
+
+/** Manual trigger of the daily push, gated on the bot token so only the
+ *  operator can fire it. Useful for verifying the cron pipeline outside of
+ *  the 09:30 window. */
+app.post('/api/debug/daily-push', async (req, res) => {
+  const token =
+    typeof req.query.token === 'string' ? req.query.token : undefined;
+  if (!BOT_TOKEN || token !== BOT_TOKEN) {
+    return res.status(401).json({ ok: false });
+  }
+  const out = await runDailyPush();
+  return res.json({ ok: true, ...out });
+});
 
 app.listen(PORT, () => {
   console.log(`[server] listening on :${PORT}, token=${BOT_TOKEN ? 'yes' : 'missing'}`);
