@@ -65,7 +65,10 @@ export function solve(
  * Returns the set of every value reachable from `numbers` via valid operations.
  * Used by the puzzle generator to pick good targets.
  */
-export function reachableValues(numbers: readonly number[]): Map<number, number> {
+export function reachableValues(
+  numbers: readonly number[],
+  maxDepth: number = Infinity,
+): Map<number, number> {
   const bestSteps = new Map<number, number>();
 
   function recurse(nums: number[], depth: number): void {
@@ -73,7 +76,13 @@ export function reachableValues(numbers: readonly number[]): Map<number, number>
       const prev = bestSteps.get(v);
       if (prev === undefined || depth < prev) bestSteps.set(v, depth);
     }
-    if (nums.length === 1) return;
+    // Stop expanding once we've reached the deepest step count the caller
+    // cares about. The puzzle generator only consumes results where
+    // `steps === minSteps`, so exploring beyond that is pure waste — and on
+    // some seeds (notably 2026-04-26 with starters {2,9,20,7,12,7}) the full
+    // walk takes 10+ seconds in Vite dev / ~1 s in production. Capping the
+    // depth at minSteps cuts that to well under 200 ms in dev.
+    if (depth >= maxDepth || nums.length === 1) return;
 
     for (let i = 0; i < nums.length; i++) {
       for (let j = 0; j < nums.length; j++) {

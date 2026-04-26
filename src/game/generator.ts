@@ -65,7 +65,10 @@ function drawStarters(rng: () => number, count: number): number[] {
  * rather than failing, so the generator can almost always produce something.
  */
 function chooseTarget(numbers: number[], minSteps: number, rng: () => number): number | null {
-  const reachable = reachableValues(numbers);
+  // Only need entries with `steps === minSteps`, so don't make the solver
+  // walk paths longer than that. Caps the recursion budget on adversarial
+  // starter sets that would otherwise spend seconds exploring unused depth.
+  const reachable = reachableValues(numbers, minSteps);
   const preferred: Array<{ v: number; score: number }> = [];
   const acceptable: Array<{ v: number; score: number }> = [];
 
@@ -168,9 +171,21 @@ export function difficultyFor(date: Date = new Date()): number {
   return [3, 3, 4, 4, 4, 4, 4][day];
 }
 
+/** Last result of `todayPuzzle()` keyed on its Kyiv-date seed. Multiple
+ *  call sites (`useMemo` at App mount, the server's `puzzleForDate` for
+ *  `/api/result` validation, occasional HMR re-runs in dev) all hit the
+ *  same deterministic computation; the cache means we pay it once per
+ *  Kyiv day per process. */
+let dailyPuzzleCache: { seed: string; puzzle: Puzzle } | null = null;
+
 /** The daily puzzle for "today in Kyiv". Deterministic per Kyiv-date, so the
  *  same puzzle is seen by everyone between local 00:00 and 24:00 in Kyiv. */
 export function todayPuzzle(now: Date = new Date()): Puzzle {
   const seed = kyivIsoDate(now);
-  return generatePuzzle({ minSteps: difficultyFor(now), seed });
+  if (dailyPuzzleCache && dailyPuzzleCache.seed === seed) {
+    return dailyPuzzleCache.puzzle;
+  }
+  const puzzle = generatePuzzle({ minSteps: difficultyFor(now), seed });
+  dailyPuzzleCache = { seed, puzzle };
+  return puzzle;
 }
