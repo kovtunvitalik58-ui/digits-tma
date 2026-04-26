@@ -21,7 +21,7 @@ import {
   type DailyResult,
 } from './game/dailyResult';
 import { kyivIsoDate } from './lib/kyivDate';
-import { pushResult, registerUser } from './lib/api';
+import { fetchLeaderboard, pushResult, registerUser } from './lib/api';
 
 export default function App() {
   // Manual reset hatch — wipes storage and reloads as a first-time player.
@@ -145,6 +145,38 @@ function GameApp() {
   useEffect(() => {
     const referrer = parseRefFromStartParam(getStartParam());
     registerUser(referrer);
+  }, []);
+
+  // Server-side fallback for cross-device "did I already play today?". The
+  // CloudStorage path covers most cases but its 1.5 s deadline races slow
+  // desktop clients and can return null while the cloud read is still in
+  // flight, leaving the player free to play the same daily again on a
+  // different device. The server already records every finished result via
+  // /api/result, so /api/leaderboard knows the truth — synthesize a
+  // todayResult from `me.today` if local state hasn't picked it up yet.
+  // Functional setState makes this a no-op when the cloud path beats us.
+  useEffect(() => {
+    fetchLeaderboard().then((board) => {
+      if (!board?.me?.today) return;
+      const t = board.me.today;
+      const today = kyivIsoDate();
+      setTodayResult((prev) => {
+        if (prev) return prev;
+        const closest = t.closest;
+        const distance = closest === null ? 0 : Math.abs(initialPuzzle.target - closest);
+        return {
+          dateId: today,
+          stars: Math.max(0, Math.min(3, t.stars)) as DailyResult['stars'],
+          target: initialPuzzle.target,
+          closest,
+          distance,
+          opsUsed: t.opsUsed,
+          finishedAt: Date.now(),
+        };
+      });
+      setVictoryOpen(true);
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const closeOnboarding = () => {
